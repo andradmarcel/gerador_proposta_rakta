@@ -18,6 +18,16 @@
 
   <!-- Estilo customizado do Gerador -->
   <link rel="stylesheet" href="style.css">
+
+  <!-- Import Map para rodar nativamente no Live Server e no Vite -->
+  <script type="importmap">
+    {
+      "imports": {
+        "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+        "jspdf": "https://esm.sh/jspdf@2.5.1"
+      }
+    }
+  </script>
 </head>
 
 <body>
@@ -517,16 +527,8 @@
 
   </div>
 
-  <!-- html2canvas: captura de slides como imagem -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <!-- jsPDF: montagem do PDF página a página -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- Template HTML do Contrato -->
-  <script src="contractTemplate.js"></script>
-
-  <!-- Lógica Javascript da Aplicação -->
-  <script src="app.js"></script>
+  <!-- Lógica Javascript da Aplicação (Carregada como módulo ES) -->
+  <script type="module" src="app.js"></script>
 </body>
 
 </html>

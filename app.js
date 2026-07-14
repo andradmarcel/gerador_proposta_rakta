@@ -1,3 +1,7 @@
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { getContractTemplateHTML } from './contractTemplate.js';
+
 // Banco de Dados de Serviços Rakta
 const servicesData = {
   performance: {
@@ -1484,7 +1488,7 @@ function updatePreview() {
     addSlideToPreview(container, slide, slideIndex++);
   }
 
-  // 2. Slide de Problema (Dores à esquerda, Estratégia em bullet points à direita sem cobrir o elefante central)
+  // 2. Slide de Problema
   if (proposalState.includeSlides.problem) {
     const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (1).webp");
 
@@ -1504,7 +1508,6 @@ function updatePreview() {
     });
 
     slide.innerHTML += `
-      <!-- Coluna da Esquerda: Dores do Cliente -->
       <div class="problem-overlay-left" style="position: absolute; top: 100px; left: 50px; width: 330px; padding: 24px; background: rgba(5,5,7,0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-left: 4px solid #e30613; border-radius: 0 12px 12px 0; box-shadow: 0 20px 40px rgba(0,0,0,0.6); z-index: 10;">
         <div class="overlay-tag" style="font-family: Arial, sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.3em; color: #e30613; margin-bottom: 6px;">DIAGNÓSTICO ESTRATÉGICO</div>
         <div class="overlay-title" style="font-family: Arial, sans-serif; font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 18px; text-transform: uppercase;">DORES DO CLIENTE</div>
@@ -1513,7 +1516,6 @@ function updatePreview() {
         </ul>
       </div>
 
-      <!-- Coluna da Direita: Estratégia Recomendada -->
       <div class="problem-overlay-right" style="position: absolute; top: 100px; right: 50px; width: 330px; padding: 24px; background: rgba(5,5,7,0.90); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-left: 4px solid #e30613; border-radius: 0 12px 12px 0; box-shadow: 0 20px 40px rgba(0,0,0,0.6); z-index: 10;">
         <div class="overlay-tag" style="font-family: Arial, sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.3em; color: #e30613; margin-bottom: 6px;">DIAGNÓSTICO ESTRATÉGICO</div>
         <div class="overlay-title" style="font-family: Arial, sans-serif; font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 18px; text-transform: uppercase;">ESTRATÉGIA RECOMENDADA</div>
@@ -1552,13 +1554,12 @@ function updatePreview() {
     addSlideToPreview(container, slide, slideIndex++);
   }
 
-  // 7. Slides de Serviços Selecionados (Dinamismo de Páginas)
+  // 7. Serviços
   if (proposalState.includeSlides.services && proposalState.selectedServices.length > 0) {
     const monthlySelected = proposalState.selectedServices.filter(s => s.period === "mês");
     const oneoffSelected = proposalState.selectedServices.filter(s => s.period !== "mês");
     const servicesPerPage = 3;
 
-    // Ordena por bônus primeiro, e depois por categoria para agrupar visualmente nos slides
     const categoryOrder = ["performance", "branding", "digital", "tecnologia", "crm", "consultoria"];
     const sortByBonusAndCategory = (a, b) => {
       if (a.isBonus && !b.isBonus) return -1;
@@ -1568,7 +1569,6 @@ function updatePreview() {
     monthlySelected.sort(sortByBonusAndCategory);
     oneoffSelected.sort(sortByBonusAndCategory);
 
-    // 7.1. Renderiza Serviços Recorrentes
     if (monthlySelected.length > 0) {
       const pagesCount = Math.ceil(monthlySelected.length / servicesPerPage);
       for (let i = 0; i < pagesCount; i++) {
@@ -1576,51 +1576,36 @@ function updatePreview() {
         slide.classList.add("dark-mesh-bg");
         const pageServices = monthlySelected.slice(i * servicesPerPage, (i + 1) * servicesPerPage);
         let servicesCardsHTML = "";
-
         pageServices.forEach(srv => {
           const bullets = parseDescriptionToBullets(srv.description);
           let bulletsHTML = "";
-          bullets.forEach(b => {
-            bulletsHTML += `<li><span class="bullet-red-small">•</span> ${b}</li>`;
-          });
-
-          const bonusBadge = srv.isBonus ? `<span class="service-preview-level" style="background: rgba(21, 128, 61, 0.15); border-color: #15803d; color: #15803d; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase;">BÔNUS</span>` : "";
-
+          bullets.forEach(b => { bulletsHTML += `<li><span class="bullet-red-small">•</span> ${b}</li>`; });
+          const bonusBadge = srv.isBonus ? getBonusBadgeHTML() : "";
           servicesCardsHTML += `
-            <div class="service-preview-card ${srv.isBonus ? 'service-preview-card-bonus' : ''}" ${srv.isBonus ? 'style="border-color: rgba(21, 128, 61, 0.5);"' : ''}>
+            <div class="service-preview-card ${srv.isBonus ? 'service-preview-card-bonus' : ''}">
               <div class="service-preview-header" style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                 <h3>${srv.name}</h3>
                 ${bonusBadge}
               </div>
-              <ul class="service-preview-bullets">
-                ${bulletsHTML}
-              </ul>
+              <ul class="service-preview-bullets">${bulletsHTML}</ul>
             </div>
           `;
         });
-
         slide.innerHTML = `
           <div class="mesh-blob blob-1"></div>
           <div class="mesh-blob blob-2"></div>
           <div class="services-slide-container">
             <div class="slide-header flex justify-between items-end">
-              <div>
-                <span class="slide-sup-title">ESCOPO RECORRENTE</span>
-                <h2 class="slide-main-title">SERVIÇOS MENSAIS</h2>
-              </div>
+              <div><span class="slide-sup-title">ESCOPO RECORRENTE</span><h2 class="slide-main-title">SERVIÇOS MENSAIS</h2></div>
               <span class="slide-pagination">${i + 1} / ${pagesCount}</span>
             </div>
-            
-            <div class="services-grid-preview">
-              ${servicesCardsHTML}
-            </div>
+            <div class="services-grid-preview">${servicesCardsHTML}</div>
           </div>
         `;
         addSlideToPreview(container, slide, slideIndex++);
       }
     }
 
-    // 7.2. Renderiza Serviços Pontuais (Projetos & Setups)
     if (oneoffSelected.length > 0) {
       const pagesCount = Math.ceil(oneoffSelected.length / servicesPerPage);
       for (let i = 0; i < pagesCount; i++) {
@@ -1628,44 +1613,30 @@ function updatePreview() {
         slide.classList.add("dark-mesh-bg");
         const pageServices = oneoffSelected.slice(i * servicesPerPage, (i + 1) * servicesPerPage);
         let servicesCardsHTML = "";
-
         pageServices.forEach(srv => {
           const bullets = parseDescriptionToBullets(srv.description);
           let bulletsHTML = "";
-          bullets.forEach(b => {
-            bulletsHTML += `<li><span class="bullet-red-small">•</span> ${b}</li>`;
-          });
-
-          const bonusBadge = srv.isBonus ? `<span class="service-preview-level" style="background: rgba(21, 128, 61, 0.15); border-color: #15803d; color: #15803d; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase;">BÔNUS</span>` : "";
-
+          bullets.forEach(b => { bulletsHTML += `<li><span class="bullet-red-small">•</span> ${b}</li>`; });
+          const bonusBadge = srv.isBonus ? getBonusBadgeHTML() : "";
           servicesCardsHTML += `
-            <div class="service-preview-card ${srv.isBonus ? 'service-preview-card-bonus' : ''}" ${srv.isBonus ? 'style="border-color: rgba(21, 128, 61, 0.5);"' : ''}>
+            <div class="service-preview-card ${srv.isBonus ? 'service-preview-card-bonus' : ''}">
               <div class="service-preview-header" style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                 <h3>${srv.name}</h3>
                 ${bonusBadge}
               </div>
-              <ul class="service-preview-bullets">
-                ${bulletsHTML}
-              </ul>
+              <ul class="service-preview-bullets">${bulletsHTML}</ul>
             </div>
           `;
         });
-
         slide.innerHTML = `
           <div class="mesh-blob blob-1"></div>
           <div class="mesh-blob blob-2"></div>
           <div class="services-slide-container">
             <div class="slide-header flex justify-between items-end">
-              <div>
-                <span class="slide-sup-title">ESCOPO PONTUAL</span>
-                <h2 class="slide-main-title">PROJETOS E SETUPS</h2>
-              </div>
+              <div><span class="slide-sup-title">ESCOPO PONTUAL</span><h2 class="slide-main-title">PROJETOS E SETUPS</h2></div>
               <span class="slide-pagination">${i + 1} / ${pagesCount}</span>
             </div>
-            
-            <div class="services-grid-preview">
-              ${servicesCardsHTML}
-            </div>
+            <div class="services-grid-preview">${servicesCardsHTML}</div>
           </div>
         `;
         addSlideToPreview(container, slide, slideIndex++);
@@ -1673,259 +1644,77 @@ function updatePreview() {
     }
   }
 
-  // 8. Slide de Investimento
+  // 8. Investimento
   if (proposalState.includeSlides.investment) {
     const slide = createSlideElement();
     slide.classList.add("dark-mesh-bg");
-
-    const servicesCount = proposalState.selectedServices.length;
-    let layoutClass = "";
-    let tableClass = "";
-    if (servicesCount > 5) {
-      layoutClass = "compact-layout";
-      tableClass = "compact-table";
-    }
-
-    // Helper local para obter conteúdo formatado de células de serviço
-    const getServiceCellContent = (s) => {
-      const priceText = s.isBonus ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 10px; font-weight: normal; margin-right: 8px; display: inline-block;">${formatCurrency(s.price)}</span><span style="background: rgba(21, 128, 61, 0.15); color: #15803d; border: 1px solid rgba(21, 128, 61, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; letter-spacing: 0.05em; display: inline-block;">BÔNUS</span>` : `<i class="fa-solid fa-circle-check"></i> Incluso`;
-
-      let nameHTML = `<div>${s.name} ${s.isBonus ? '<span style="color: #15803d; font-size: 10px; font-weight: bold;">(Bônus)</span>' : ''}</div>`;
-      let priceHTML = `<div style="color: var(--rakta-red); font-weight: bold;">${priceText}</div>`;
-
-      if (s.period === "setup" && s.recurring > 0) {
-        const recurringPriceText = s.isBonus ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.3); font-size: 9px; font-weight: normal; margin-right: 6px; display: inline-block;">${formatCurrency(s.recurring)}</span><span style="background: rgba(21, 128, 61, 0.15); color: #15803d; border: 1px solid rgba(21, 128, 61, 0.2); padding: 1px 5px; border-radius: 4px; font-size: 8px; font-weight: bold; display: inline-block;">BÔNUS</span>` : '<i class="fa-solid fa-circle-check"></i> Incluso';
-        nameHTML += `<div style="font-size: 9px; color: var(--text-muted); margin-top: 2px; font-weight: normal; padding-left: 8px;">↳ Manutenção de CRM/Chatbot vinculada</div>`;
-        priceHTML += `<div style="font-size: 9px; color: var(--text-muted); margin-top: 2px; font-weight: bold;">${recurringPriceText}</div>`;
-      }
-
-      return { nameHTML, priceHTML };
-    };
-
     const totals = calculateTotals();
     const monthlyServices = totals.monthlyServices;
     const projectServices = totals.projectServices;
     const setupServices = totals.setupServices;
     const autoMonthly = totals.autoMonthly;
     const autoOneOffAndSetup = totals.autoOneOffAndSetup;
-    const originalMonthly = autoMonthly;
-    const originalOneOffAndSetup = autoOneOffAndSetup;
 
-    // Atualizar os placeholders dos inputs na barra lateral
-    const monthlyInput = document.getElementById("override-monthly-input");
-    if (monthlyInput) {
-      monthlyInput.placeholder = autoMonthly > 0 ? `Calculado: ${formatCurrency(autoMonthly)}` : "Automático";
-    }
-    const oneoffInput = document.getElementById("override-oneoff-input");
-    if (oneoffInput) {
-      oneoffInput.placeholder = autoOneOffAndSetup > 0 ? `Calculado: ${formatCurrency(autoOneOffAndSetup)}` : "Automático";
-    }
+    const getServiceCellContent = (s) => {
+      const priceText = s.isBonus ? getBonusPriceTextHTML(s.price) : `<i class="fa-solid fa-circle-check"></i> Incluso`;
+      let nameHTML = `<div>${getBonusServiceNameHTML(s.name, s.isBonus)}</div>`;
+      let priceHTML = `<div style="color: var(--rakta-red); font-weight: bold;">${priceText}</div>`;
+      if (s.period === "setup" && s.recurring > 0) {
+        const recurringPriceText = s.isBonus ? getBonusPriceTextHTML(s.recurring, true) : '<i class="fa-solid fa-circle-check"></i> Incluso';
+        nameHTML += `<div style="font-size: 9px; color: var(--text-muted); margin-top: 2px; font-weight: normal; padding-left: 8px;">↳ Manutenção de CRM/Chatbot vinculada</div>`;
+        priceHTML += `<div style="font-size: 9px; color: var(--text-muted); margin-top: 2px; font-weight: bold;">${recurringPriceText}</div>`;
+      }
+      return { nameHTML, priceHTML };
+    };
 
-    let totalMonthly = totals.totalMonthly;
-    let totalOneOffAndSetup = totals.totalOneOffAndSetup;
-
-    let tableHeaderHTML = "";
     let investmentRowsHTML = "";
-    const isDoubleColumn = servicesCount > 5;
-
-    if (isDoubleColumn) {
-      tableHeaderHTML = `
-        <tr>
-          <th>Escopo</th>
-          <th class="text-right" style="border-right: 1px solid rgba(255,255,255,0.05); padding-right: 15px;">Investimento</th>
-          <th style="padding-left: 15px;">Escopo</th>
-          <th class="text-right">Investimento</th>
-        </tr>
-      `;
-
-      // Recorrência Mensal (Coluna Dupla)
-      if (monthlyServices.length > 0) {
-        investmentRowsHTML += `
-          <tr class="table-section-header">
-            <td colspan="4">Recorrência Mensal</td>
-          </tr>
-        `;
-        for (let i = 0; i < monthlyServices.length; i += 2) {
-          const s1 = monthlyServices[i];
-          const s2 = monthlyServices[i + 1];
-          const c1 = getServiceCellContent(s1);
-
-          const cell1 = `
-            <td>${c1.nameHTML}</td>
-            <td class="text-right" style="border-right: 1px solid rgba(255,255,255,0.05); padding-right: 15px;">${c1.priceHTML}</td>
-          `;
-
-          let cell2 = `<td></td><td></td>`;
-          if (s2) {
-            const c2 = getServiceCellContent(s2);
-            cell2 = `
-              <td style="padding-left: 15px;">${c2.nameHTML}</td>
-              <td class="text-right">${c2.priceHTML}</td>
-            `;
-          }
-
-          investmentRowsHTML += `<tr>${cell1}${cell2}</tr>`;
-        }
-      }
-
-      // Projetos e Setups Únicos (Coluna Dupla)
-      const oneOffServices = [...setupServices, ...projectServices];
-      if (oneOffServices.length > 0) {
-        investmentRowsHTML += `
-          <tr class="table-section-header">
-            <td colspan="4" style="border-top: 1px solid rgba(255,255,255,0.05);">Projetos e Setups Únicos</td>
-          </tr>
-        `;
-        for (let i = 0; i < oneOffServices.length; i += 2) {
-          const s1 = oneOffServices[i];
-          const s2 = oneOffServices[i + 1];
-          const c1 = getServiceCellContent(s1);
-
-          const cell1 = `
-            <td>${c1.nameHTML}</td>
-            <td class="text-right" style="border-right: 1px solid rgba(255,255,255,0.05); padding-right: 15px;">${c1.priceHTML}</td>
-          `;
-
-          let cell2 = `<td></td><td></td>`;
-          if (s2) {
-            const c2 = getServiceCellContent(s2);
-            cell2 = `
-              <td style="padding-left: 15px;">${c2.nameHTML}</td>
-              <td class="text-right">${c2.priceHTML}</td>
-            `;
-          }
-
-          investmentRowsHTML += `<tr>${cell1}${cell2}</tr>`;
-        }
-      }
-    } else {
-      // Modo clássico (coluna simples)
-      tableHeaderHTML = `
-        <tr>
-          <th>Escopo</th>
-          <th class="text-right">Investimento</th>
-        </tr>
-      `;
-
-      if (monthlyServices.length > 0) {
-        investmentRowsHTML += `
-          <tr class="table-section-header">
-            <td colspan="2">Recorrência Mensal</td>
-          </tr>
-        `;
-        monthlyServices.forEach(s => {
-          const priceText = s.isBonus ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 10px; font-weight: normal; margin-right: 8px; display: inline-block;">${formatCurrency(s.price)}</span><span style="background: rgba(21, 128, 61, 0.15); color: #15803d; border: 1px solid rgba(21, 128, 61, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; letter-spacing: 0.05em; display: inline-block;">BÔNUS</span>` : `<i class="fa-solid fa-circle-check"></i> Incluso`;
-          investmentRowsHTML += `
-            <tr>
-              <td>${s.name} ${s.isBonus ? '<span style="color: #15803d; font-size: 10px; font-weight: bold;">(Bônus)</span>' : ''}</td>
-              <td class="text-right" style="color: var(--rakta-red); font-weight: bold;">${priceText}</td>
-            </tr>
-          `;
-        });
-      }
-
-      const totalOneOffCount = setupServices.length + projectServices.length;
-      if (totalOneOffCount > 0) {
-        investmentRowsHTML += `
-          <tr class="table-section-header">
-            <td colspan="2" style="border-top: 1px solid rgba(255,255,255,0.05);">Projetos e Setups Únicos</td>
-          </tr>
-        `;
-        setupServices.forEach(s => {
-          const priceText = s.isBonus ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 10px; font-weight: normal; margin-right: 8px; display: inline-block;">${formatCurrency(s.price)}</span><span style="background: rgba(21, 128, 61, 0.15); color: #15803d; border: 1px solid rgba(21, 128, 61, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; letter-spacing: 0.05em; display: inline-block;">BÔNUS</span>` : `<i class="fa-solid fa-circle-check"></i> Incluso`;
-          investmentRowsHTML += `
-            <tr>
-              <td>${s.name} ${s.isBonus ? '<span style="color: #15803d; font-size: 10px; font-weight: bold;">(Bônus)</span>' : ''}</td>
-              <td class="text-right" style="color: var(--rakta-red); font-weight: bold;">${priceText}</td>
-            </tr>
-            ${s.recurring > 0 ? `
-            <tr class="child-row-recurring">
-              <td>↳ Manutenção de CRM/Chatbot vinculada ${s.isBonus ? '<span style="color: #15803d; font-size: 9px;">(Bônus)</span>' : ''}</td>
-              <td class="text-right" style="color: var(--text-muted); font-weight: bold;">
-                ${s.isBonus ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.3); font-size: 9px; font-weight: normal; margin-right: 6px; display: inline-block;">${formatCurrency(s.recurring)}</span><span style="background: rgba(21, 128, 61, 0.15); color: #15803d; border: 1px solid rgba(21, 128, 61, 0.2); padding: 1px 5px; border-radius: 4px; font-size: 8px; font-weight: bold; display: inline-block;">BÔNUS</span>` : '<i class="fa-solid fa-circle-check"></i> Incluso'}
-              </td>
-            </tr>
-            ` : ""}
-          `;
-        });
-
-        projectServices.forEach(s => {
-          const priceText = s.isBonus ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 10px; font-weight: normal; margin-right: 8px; display: inline-block;">${formatCurrency(s.price)}</span><span style="background: rgba(21, 128, 61, 0.15); color: #15803d; border: 1px solid rgba(21, 128, 61, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; letter-spacing: 0.05em; display: inline-block;">BÔNUS</span>` : `<i class="fa-solid fa-circle-check"></i> Incluso`;
-          investmentRowsHTML += `
-            <tr>
-              <td>${s.name} ${s.isBonus ? '<span style="color: #15803d; font-size: 10px; font-weight: bold;">(Bônus)</span>' : ''}</td>
-              <td class="text-right" style="color: var(--rakta-red); font-weight: bold;">${priceText}</td>
-            </tr>
-          `;
-        });
-      }
+    if (monthlyServices.length > 0) {
+      investmentRowsHTML += `<tr class="table-section-header"><td colspan="2">Recorrência Mensal</td></tr>`;
+      monthlyServices.forEach(s => {
+        const c = getServiceCellContent(s);
+        investmentRowsHTML += `<tr><td>${c.nameHTML}</td><td class="text-right">${c.priceHTML}</td></tr>`;
+      });
+    }
+    const oneOffServices = [...setupServices, ...projectServices];
+    if (oneOffServices.length > 0) {
+      investmentRowsHTML += `<tr class="table-section-header"><td colspan="2" style="border-top: 1px solid rgba(255,255,255,0.05);">Projetos e Setups Únicos</td></tr>`;
+      oneOffServices.forEach(s => {
+        const c = getServiceCellContent(s);
+        investmentRowsHTML += `<tr><td>${c.nameHTML}</td><td class="text-right">${c.priceHTML}</td></tr>`;
+      });
     }
 
     slide.innerHTML = `
       <div class="mesh-blob blob-1"></div>
       <div class="mesh-blob blob-3"></div>
-      <div class="services-slide-container ${layoutClass}">
+      <div class="services-slide-container">
         <div class="slide-header">
           <span class="slide-sup-title">PELA RAKTA DIGITAL PARA ${proposalState.clientName.toUpperCase()}</span>
           <h2 class="slide-main-title">RESUMO DO PLANO</h2>
         </div>
-        
         <div class="investment-layout">
-          <!-- Tabela de Investimento (Esquerda) -->
           <div class="investment-left">
             <div class="table-card">
-              <table class="investment-table ${tableClass}">
-                <thead>
-                  ${tableHeaderHTML}
-                </thead>
-                <tbody>
-                  ${proposalState.selectedServices.length === 0 ? `
-                    <tr>
-                      <td colspan="${isDoubleColumn ? 4 : 2}" class="text-center py-10 text-zinc-600">Nenhum serviço selecionado no painel ao lado.</td>
-                    </tr>
-                  ` : investmentRowsHTML}
-                </tbody>
-              </table>
+              <table class="investment-table"><thead><tr><th>Escopo</th><th class="text-right">Investimento</th></tr></thead><tbody>${investmentRowsHTML}</tbody></table>
             </div>
-
             <div class="totals-block">
-              ${totalMonthly > 0 ? `
-                <div class="total-card ${totalMonthly < originalMonthly ? 'total-card-discounted' : ''}">
-                  <span>INVESTIMENTO MENSAL</span>
-                  <h3>
-                    ${totalMonthly < originalMonthly ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 13px; font-weight: 400; margin-right: 8px; display: inline-block;">${formatCurrency(originalMonthly)}</span>` : ""}
-                    ${formatCurrency(totalMonthly)}<span class="period">/mês</span>
-                  </h3>
-                </div>
-              ` : ""}
-              ${totalOneOffAndSetup > 0 ? `
-                <div class="total-card ${totalOneOffAndSetup < originalOneOffAndSetup ? 'total-card-discounted' : ''}">
-                  <span>PROJETOS E SETUP ÚNICO</span>
-                  <h3>
-                    ${totalOneOffAndSetup < originalOneOffAndSetup ? `<span style="text-decoration: line-through; color: rgba(255,255,255,0.4); font-size: 13px; font-weight: 400; margin-right: 8px; display: inline-block;">${formatCurrency(originalOneOffAndSetup)}</span>` : ""}
-                    ${formatCurrency(totalOneOffAndSetup)}<span class="period"> (total)</span>
-                  </h3>
-                </div>
-              ` : ""}
+              ${totals.totalMonthly > 0 ? `<div class="total-card"><span>INVESTIMENTO MENSAL</span><h3>${formatCurrency(totals.totalMonthly)}<span class="period">/mês</span></h3></div>` : ""}
+              ${totals.totalOneOffAndSetup > 0 ? `<div class="total-card"><span>PROJETOS E SETUP ÚNICO</span><h3>${formatCurrency(totals.totalOneOffAndSetup)}<span class="period"> (total)</span></h3></div>` : ""}
             </div>
           </div>
-
-          <!-- Condições e Assinaturas (Direita) -->
           <div class="investment-right">
             <div class="conditions-card">
               <h4>CONDIÇÕES COMERCIAIS</h4>
               <ul>
                 <li><strong>Prazo Contratual:</strong> ${proposalState.contractTerm}</li>
                 <li><strong>Serviços Recorrentes:</strong> ${proposalState.paymentTerms}</li>
-                ${totalOneOffAndSetup > 0 ? `<li><strong>Projetos e Setups:</strong> ${proposalState.setupPaymentTerms}</li>` : ""}
+                ${totals.totalOneOffAndSetup > 0 ? `<li><strong>Projetos e Setups:</strong> ${proposalState.setupPaymentTerms}</li>` : ""}
                 ${proposalState.mediaInvestment ? `<li><strong>Investimento em Mídia:</strong> ${proposalState.mediaInvestment}</li>` : ""}
                 <li><strong>Início dos Trabalhos:</strong> ${proposalState.workStart}</li>
                 ${proposalState.proposalNotes ? `<li style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.05);"><strong>Observações:</strong> ${proposalState.proposalNotes}</li>` : ""}
               </ul>
             </div>
-
             <div class="signatures-block">
-              <div class="signature-box">
                 <div class="sig-line"></div>
                 <span>Pela Rakta Digital</span>
               </div>
@@ -2057,15 +1846,6 @@ async function generatePDF() {
     // Garante que todas as fontes estejam carregadas antes de capturar
     await document.fonts.ready;
 
-    // Verifica se as bibliotecas estão disponíveis
-    if (typeof window.html2canvas === "undefined") {
-      throw new Error("html2canvas não carregado. Verifique a conexão com a internet.");
-    }
-    if (typeof window.jspdf === "undefined") {
-      throw new Error("jsPDF não carregado. Verifique a conexão com a internet.");
-    }
-
-    const { jsPDF } = window.jspdf;
     const SLIDE_W = 2560;
     const SLIDE_H = 1440;
     const slides = document.querySelectorAll(".slide-content-scale");
@@ -2357,7 +2137,7 @@ async function generatePDF() {
       offscreen.appendChild(renderEl);
 
       // Captura com html2canvas em resolução de altíssima qualidade (scale 1.5)
-      const canvas = await window.html2canvas(renderEl, {
+      const canvas = await html2canvas(renderEl, {
         scale: 1.5,
         useCORS: true,
         allowTaint: false,
@@ -2464,12 +2244,24 @@ async function generateWithGemini() {
   const selectedTone = toneSelect ? toneSelect.value : "persuasivo";
   const toneDescription = toneMap[selectedTone] || toneMap["persuasivo"];
 
-  // Lista de serviços simplificada para enviar à IA
-  const servicesList = proposalState.selectedServices.map(s => ({
-    id: s.serviceId,
-    name: s.name,
-    description: s.description
-  }));
+  // Lista de serviços simplificada para enviar à IA (usa a descrição original do template se for um serviço padrão para evitar acumular formatação anterior ou dados de outro cliente/nicho)
+  const servicesList = proposalState.selectedServices.map(s => {
+    let baseDescription = s.description;
+    
+    // Tenta obter a descrição original do template estático do banco de dados
+    if (servicesData[s.categoryId]) {
+      const standardService = servicesData[s.categoryId].services.find(srv => srv.id === s.serviceId);
+      if (standardService && standardService.levels[s.levelId]) {
+        baseDescription = standardService.levels[s.levelId].description;
+      }
+    }
+    
+    return {
+      id: s.serviceId,
+      name: s.name,
+      description: baseDescription
+    };
+  });
 
   const prompt = `Você é um estrategista de marketing e copywriter sênior da Rakta Digital. Tom de redação: ${toneDescription}.
 O seu objetivo é:
@@ -3349,5 +3141,23 @@ function printContract() {
     document.body.classList.remove("print-contract-mode");
     document.title = originalTitle;
   }, 1000);
+}
+
+// Helpers para renderização de Bônus e design responsivo
+function getBonusBadgeHTML() {
+  return `<span class="service-preview-level badge-bonus">BÔNUS</span>`;
+}
+
+function getBonusPriceTextHTML(price, isRecurring = false) {
+  const strikethroughClass = isRecurring ? "price-strikethrough-recurring" : "price-strikethrough";
+  const badgeClass = isRecurring ? "badge-bonus-child" : "badge-bonus-inline";
+  return `<span class="${strikethroughClass}">${formatCurrency(price)}</span><span class="${badgeClass}">BÔNUS</span>`;
+}
+
+function getBonusServiceNameHTML(name, isBonus, customSize = "10px") {
+  if (isBonus) {
+    return `${name} <span class="service-bonus-name" style="font-size: ${customSize};">(Bônus)</span>`;
+  }
+  return name;
 }
 

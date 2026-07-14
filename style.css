@@ -1605,3 +1605,66 @@ textarea.input-field {
     page-break-inside: avoid;
   }
 }
+
+/* Estilos para Bônus e Otimizações de Código */
+.badge-bonus {
+  background: rgba(21, 128, 61, 0.15) !important;
+  border-color: #15803d !important;
+  color: #15803d !important;
+  font-size: 9px !important;
+  font-weight: bold !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+}
+
+.service-preview-card-bonus {
+  border-color: rgba(21, 128, 61, 0.5) !important;
+}
+
+.price-strikethrough {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-weight: normal;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.price-strikethrough-recurring {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 9px;
+  font-weight: normal;
+  margin-right: 6px;
+  display: inline-block;
+}
+
+.badge-bonus-inline {
+  background: rgba(21, 128, 61, 0.15);
+  color: #15803d;
+  border: 1px solid rgba(21, 128, 61, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  display: inline-block;
+}
+
+.badge-bonus-child {
+  background: rgba(21, 128, 61, 0.15);
+  color: #15803d;
+  border: 1px solid rgba(21, 128, 61, 0.2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.service-bonus-name {
+  color: #15803d;
+  font-weight: bold;
+}

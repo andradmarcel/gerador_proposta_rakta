@@ -1,5 +1,5 @@
 // Template HTML e estilos do Contrato Rakta (MSA)
-function getContractTemplateHTML(data) {
+export function getContractTemplateHTML(data) {
   const {
     contractCompany,
     contractCNPJ,
