@@ -1469,7 +1469,7 @@ function updatePreview() {
 
   // 1. Slide de Capa
   if (proposalState.includeSlides.cover) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial.png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial.webp");
     slide.innerHTML += `
       <div class="cover-card" style="position: absolute; bottom: 50px; right: 50px; width: 420px; padding: 30px; background: rgba(7,7,9,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; box-shadow: 0 25px 50px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1); z-index: 10;">
         <div class="cover-tag" style="font-family: Arial, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.4em; color: #e30613; margin-bottom: 12px; text-transform: uppercase;">PROPOSTA COMERCIAL</div>
@@ -1486,7 +1486,7 @@ function updatePreview() {
 
   // 2. Slide de Problema (Dores à esquerda, Estratégia em bullet points à direita sem cobrir o elefante central)
   if (proposalState.includeSlides.problem) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (1).png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (1).webp");
 
     let painHTML = "";
     proposalState.customPainPoints.forEach(point => {
@@ -1530,25 +1530,25 @@ function updatePreview() {
 
   // 3. Slide Testemunhos
   if (proposalState.includeSlides.testimonials) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (2).png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (2).webp");
     addSlideToPreview(container, slide, slideIndex++);
   }
 
   // 4. Slide Portfólio Web
   if (proposalState.includeSlides.portfolio_web) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (3).png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (3).webp");
     addSlideToPreview(container, slide, slideIndex++);
   }
 
   // 5. Slide Portfólio Social Media
   if (proposalState.includeSlides.portfolio_social) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (4).png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (4).webp");
     addSlideToPreview(container, slide, slideIndex++);
   }
 
   // 6. Slide Metodologia
   if (proposalState.includeSlides.method) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (5).png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (5).webp");
     addSlideToPreview(container, slide, slideIndex++);
   }
 
@@ -1943,7 +1943,7 @@ function updatePreview() {
 
   // 9. Slide Fechamento/Logos
   if (proposalState.includeSlides.logos) {
-    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (6).png");
+    const slide = createSlideElement("assets/Modelo Rakta - Proposta Comercial (6).webp");
     slide.innerHTML += `
       <div class="contact-box-overlay">
         <div class="contact-title">DÚVIDAS OU PRÓXIMOS PASSOS? FALE CONOSCO</div>
