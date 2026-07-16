@@ -169,7 +169,9 @@ export function getContractTemplateHTML(data) {
     implementacaoParcelas,
     projectStartDate,
     modulesHTML,
-    clauses = defaultClauses
+    clauses = defaultClauses,
+    hasImplementacao = true,
+    hasRecurrencia = true
   } = data;
 
   return `
@@ -406,6 +408,7 @@ export function getContractTemplateHTML(data) {
                 
                 <p class="c33 c19" style="margin-top: 30px;"><span class="c12 c2">CONDI&Ccedil;&Otilde;ES DO PRESENTE CONTRATO</span></p>
                 <p class="c29 c19 c21"><span class="c0"></span></p>
+                ${hasRecurrencia ? `
                 <h2 class="c9" style="margin-top: 10px;"><span class="c1 c2 c52">Recorr&ecirc;ncia</span></h2>
                 <table class="c42">
                   <tr class="c35">
@@ -423,6 +426,8 @@ export function getContractTemplateHTML(data) {
                     <td class="c18" colspan="3" rowspan="1"><p class="c33"><span class="c0">${recurrenciaMetodo}</span></p></td>
                   </tr>
                 </table>
+                ` : ''}
+                ${hasImplementacao ? `
                 <h2 class="c9" style="margin-top: 15px;"><span class="c1 c2 c52">Implementa&ccedil;&atilde;o (pontual)</span></h2>
                 <table class="c42">
                   <tr class="c35">
@@ -440,6 +445,7 @@ export function getContractTemplateHTML(data) {
                     <td class="c31" colspan="1" rowspan="1"><p class="c33"><span class="c0">${implementacaoParcelas}x</span></p></td>
                   </tr>
                 </table>
+                ` : ''}
               </div>
 
               <h1 class="c19 c33" style="margin-top: 40px;"><span class="c12 c2">DESCRITIVO DOS SERVI&Ccedil;OS (M&Oacute;DULOS)</span></h1>

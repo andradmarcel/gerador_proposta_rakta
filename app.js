@@ -2786,6 +2786,8 @@ function updateContractPreview() {
   if (!container) return;
 
   const totals = calculateTotals();
+  const hasImplementacao = totals.totalOneOffAndSetup > 0;
+  const hasRecurrencia = totals.totalMonthly > 0;
   const activeModules = getContractModules(proposalState.selectedServices);
 
   const formatDate = (dateStr) => {
@@ -2916,6 +2918,20 @@ function updateContractPreview() {
       .replace(/at&eacute; 7 \(sete\) dias/gi, `at&eacute; ${firstPaymentDays} (${firstPaymentDaysWords}) dias`)
       .replace(/at&eacute; \d+ \(.*\) dias/gi, `at&eacute; ${firstPaymentDays} (${firstPaymentDaysWords}) dias`)
       .replace(/at&eacute; \d+ dias/gi, `at&eacute; ${firstPaymentDays} (${firstPaymentDaysWords}) dias`);
+
+    if (hasRecurrencia && !hasImplementacao) {
+      clausesForRender.clause3 = clausesForRender.clause3
+        .replace(/implementa&ccedil;&atilde;o e execu&ccedil;&atilde;o/g, "execu&ccedil;&atilde;o")
+        .replace(/ e ao valor da implementa&ccedil;&atilde;o pontual \(ou &agrave; sua primeira parcela, caso tenha sido parcelada\)/g, "");
+    } else if (!hasRecurrencia && hasImplementacao) {
+      clausesForRender.clause3 = clausesForRender.clause3
+        .replace(/implementa&ccedil;&atilde;o e execu&ccedil;&atilde;o/g, "implementa&ccedil;&atilde;o")
+        .replace(/fee mensal e ao /g, "");
+    } else if (!hasRecurrencia && !hasImplementacao) {
+      clausesForRender.clause3 = clausesForRender.clause3
+        .replace(/o valor de implementa&ccedil;&atilde;o e execu&ccedil;&atilde;o da Byline/g, "os valores acordados da Byline")
+        .replace(/, correspondente ao fee mensal e ao valor da implementa&ccedil;&atilde;o pontual \(ou &agrave; sua primeira parcela, caso tenha sido parcelada\),/g, "");
+    }
   }
 
   container.innerHTML = getContractTemplateHTML({
@@ -2933,7 +2949,9 @@ function updateContractPreview() {
     implementacaoParcelas,
     projectStartDate,
     modulesHTML,
-    clauses: clausesForRender
+    clauses: clausesForRender,
+    hasImplementacao,
+    hasRecurrencia
   });
 }
 
