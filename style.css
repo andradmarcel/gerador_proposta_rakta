@@ -200,10 +200,16 @@ body {
   transition: all 0.3s ease;
 }
 
-.input-field option {
+.input-field option,
+.input-field optgroup {
   background-color: #0b0b0d;
-  /* var(--bg-sidebar) */
   color: var(--text-primary);
+}
+
+.input-field optgroup {
+  color: var(--rakta-red);
+  font-weight: 600;
+  font-style: normal;
 }
 
 .input-field:focus {

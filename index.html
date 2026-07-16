@@ -443,6 +443,33 @@
               </select>
             </div>
           </section>
+
+          <!-- Seção 3: Ajustar com IA -->
+          <section class="sidebar-section">
+            <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Personalização com IA</h3>
+
+            <div class="input-group">
+              <label for="contract-clause-select">Escolha a Cláusula ou Diretriz</label>
+              <select id="contract-clause-select" class="input-field text-xs" style="padding: 10px 12px;">
+                <!-- Populado dinamicamente via JS -->
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label for="contract-clause-prompt">Instrução para a IA (Gemini)</label>
+              <textarea id="contract-clause-prompt" class="input-field text-xs" rows="4"
+                placeholder="Ex: Altere o aviso prévio de 60 para 30 dias na Cláusula 11 ou remova a comissão de tráfego."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="btn-optimize-clause" class="btn-secondary" style="flex: 1; margin-bottom: 0;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Ajustar com IA
+              </button>
+              <button type="button" id="btn-reset-clause" class="btn-reset" style="flex: 1; margin-bottom: 0; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); font-size: 11px;">
+                <i class="fa-solid fa-rotate-left"></i> Restaurar Padrão
+              </button>
+            </div>
+          </section>
         </div>
 
       </div>

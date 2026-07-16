@@ -1,6 +1,6 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { getContractTemplateHTML } from './contractTemplate.js';
+import { getContractTemplateHTML, defaultClauses } from './contractTemplate.js';
 import { servicesData, nicheTemplates } from './servicesData.js';
 
 // Estado da Aplicação
@@ -45,7 +45,9 @@ const defaultProposalState = {
   contractPaymentRec: "Boleto bancário",
   contractPaymentSetup: "Pix",
   contractSetupInstallments: 6,
-  contractStartDate: ""
+  contractStartDate: "",
+  contractClauses: null,
+  customGuidelines: {}
 };
 
 let proposalState = JSON.parse(JSON.stringify(defaultProposalState));
@@ -73,6 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     syncFieldsFromState();
   }
   loadGeminiApiKey();
+  populateClauseSelect();
   updatePreview();
 });
 
@@ -383,6 +386,7 @@ function setupEventListeners() {
         if (compInput) compInput.value = proposalState.clientName;
       }
 
+      populateClauseSelect();
       updateContractPreview();
     });
   }
@@ -794,6 +798,21 @@ function setupEventListeners() {
       }
     }
   });
+
+  // --- IA Otimização de Cláusula/Diretriz de Contrato ---
+  const btnOptimizeClause = document.getElementById("btn-optimize-clause");
+  if (btnOptimizeClause) {
+    btnOptimizeClause.addEventListener("click", () => {
+      optimizeContractClause();
+    });
+  }
+
+  const btnResetClause = document.getElementById("btn-reset-clause");
+  if (btnResetClause) {
+    btnResetClause.addEventListener("click", () => {
+      resetContractClause();
+    });
+  }
 }
 
 // Sincroniza campos quando o nicho é alterado
@@ -842,6 +861,70 @@ function syncSelectedServices() {
       isBonus: isBonus
     });
   });
+
+  // Atualiza as opções do select de IA de contrato
+  populateClauseSelect();
+}
+
+function populateClauseSelect() {
+  const select = document.getElementById("contract-clause-select");
+  if (!select) return;
+
+  // Guarda o valor anteriormente selecionado para restaurá-lo se ainda existir
+  const prevVal = select.value;
+
+  select.innerHTML = "";
+
+  // Cláusulas Contratuais Fixas
+  const clausesGroup = document.createElement("optgroup");
+  clausesGroup.label = "Cláusulas Jurídicas (MSA)";
+  
+  const options = [
+    { value: "clause1", text: "Cláusula Primeira (Premissas Contratuais)" },
+    { value: "clause2", text: "Cláusula Segunda (Adequação do Escopo)" },
+    { value: "clause3", text: "Cláusula Terceira (Forma de Pagamento)" },
+    { value: "clause4", text: "Cláusula Quarta (Obrigações da Contratada)" },
+    { value: "clause5", text: "Cláusula Quinta (Obrigações da Contratante)" },
+    { value: "clause6", text: "Cláusula Sexta (Sigilo e Confidencialidade)" },
+    { value: "clause7", text: "Cláusula Sétima (Independência entre as Partes)" },
+    { value: "clause8", text: "Cláusula Oitava (Proteção de Dados)" },
+    { value: "clause9", text: "Cláusula Nona (Compliance)" },
+    { value: "clause10", text: "Cláusula Décima (Resolução de Conflitos)" },
+    { value: "clause11", text: "Cláusula Décima Primeira (Cancelamento & Rescisão)" },
+    { value: "clause12", text: "Cláusula Décima Segunda (Titularidade de Ativos)" },
+    { value: "clause13", text: "Cláusula Décima Terceira (Disposições Gerais)" }
+  ];
+
+  options.forEach(opt => {
+    const el = document.createElement("option");
+    el.value = opt.value;
+    el.textContent = opt.text;
+    clausesGroup.appendChild(el);
+  });
+  select.appendChild(clausesGroup);
+
+  // Diretrizes Relevantes dos Serviços Ativos
+  if (proposalState.selectedServices && proposalState.selectedServices.length > 0) {
+    const guidelinesGroup = document.createElement("optgroup");
+    guidelinesGroup.label = "Diretrizes dos Serviços Ativos";
+
+    proposalState.selectedServices.forEach(s => {
+      const el = document.createElement("option");
+      el.value = `guideline_${s.serviceId}`;
+      el.textContent = `Diretriz - ${s.name}`;
+      guidelinesGroup.appendChild(el);
+    });
+
+    select.appendChild(guidelinesGroup);
+  }
+
+  // Restaura valor selecionado anteriormente se ele ainda for válido
+  if (prevVal) {
+    const exists = Array.from(select.options).some(opt => opt.value === prevVal);
+    if (exists) {
+      select.value = prevVal;
+    }
+  }
 }
 
 // Atualiza a visualização em tempo real (Renderizador DOM)
@@ -1891,6 +1974,17 @@ function loadSavedState() {
       console.warn("Erro ao carregar estado salvo:", e);
     }
   }
+
+  // Garante inicialização das cláusulas e diretrizes customizadas
+  if (!proposalState.contractClauses) {
+    proposalState.contractClauses = { ...defaultClauses };
+  } else {
+    // Garante que se novas cláusulas forem adicionadas futuramente ao defaultClauses, elas existam no estado carregado
+    proposalState.contractClauses = { ...defaultClauses, ...proposalState.contractClauses };
+  }
+  if (!proposalState.customGuidelines) {
+    proposalState.customGuidelines = {};
+  }
 }
 
 function syncFieldsFromState() {
@@ -2128,6 +2222,187 @@ Retorne SOMENTE a string dos entregáveis, sem JSON, sem listas com hífens, sem
     alert("Erro ao otimizar: " + err.message);
     btnEl.innerHTML = originalHTML;
     btnEl.disabled = false;
+  }
+}
+
+// ============================================================
+// IA: OTIMIZAÇÃO DE CLÁUSULAS E DIRETRIZES
+// ============================================================
+
+async function optimizeContractClause() {
+  const select = document.getElementById("contract-clause-select");
+  const promptInput = document.getElementById("contract-clause-prompt");
+  const btn = document.getElementById("btn-optimize-clause");
+
+  if (!select || !promptInput || !btn) return;
+
+  const selectedKey = select.value;
+  const userInstruction = promptInput.value.trim();
+
+  if (!userInstruction) {
+    alert("Por favor, insira uma instrução para a IA.");
+    return;
+  }
+
+  const apiKeyInput = document.getElementById("gemini-api-key");
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+  if (!apiKey) {
+    alert("Por favor, insira uma Chave de API do Gemini para otimizar com IA.");
+    return;
+  }
+
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Otimizando...';
+
+  try {
+    let promptText = "";
+    const isGuideline = selectedKey.startsWith("guideline_");
+
+    if (!isGuideline) {
+      // É uma cláusula contratual (ex: clause3, clause7, etc.)
+      const originalClauseText = proposalState.contractClauses[selectedKey] || defaultClauses[selectedKey];
+      
+      promptText = `Você é um advogado especialista em contratos comerciais e marketing digital.
+Sua única tarefa é reescrever a cláusula contratual fornecida abaixo, aplicando estritamente a instrução do usuário.
+
+Cláusula original (contém tags HTML como <p>, <span>, etc. que devem ser PRESERVADAS na mesma estrutura):
+"""
+${originalClauseText}
+"""
+
+Instrução de alteração do usuário:
+"${userInstruction}"
+
+Regras cruciais:
+1. NÃO invente novos direitos, deveres, prazos, multas ou termos adicionais além do que foi explicitamente solicitado pelo usuário.
+2. Limite-se estritamente a aplicar a instrução solicitada, mantendo o restante da cláusula exatamente igual ao texto original.
+3. Preserve todas as tags HTML (como <p>, <span>, <strong>, etc.) e classes (como class="c1 c2") exatamente no mesmo lugar.
+4. Mantenha a linguagem formal, clara e em conformidade com o padrão da cláusula original.
+5. Retorne APENAS o HTML da cláusula modificada, sem qualquer tipo de markdown (não coloque cercas de código \`\`\`), sem introdução e sem explicações.`;
+    } else {
+      // É uma diretriz relevante (ex: guideline_google_meu_negocio)
+      const serviceId = selectedKey.replace("guideline_", "");
+      
+      // Encontra o serviço selecionado e suas diretrizes atuais
+      const service = proposalState.selectedServices.find(s => s.serviceId === serviceId);
+      const serviceName = service ? service.name : serviceId;
+
+      // Obtém as diretrizes atuais (custom ou padrão)
+      let currentGuidelines = [];
+      if (proposalState.customGuidelines && proposalState.customGuidelines[serviceId]) {
+        currentGuidelines = proposalState.customGuidelines[serviceId];
+      } else {
+        // Fallback para as diretrizes padrão
+        if (serviceGuidelines[serviceId]) {
+          currentGuidelines = serviceGuidelines[serviceId];
+        } else {
+          const mockActive = getContractModules([{ serviceId: serviceId, categoryId: service?.categoryId || "", name: serviceName, description: "" }]);
+          currentGuidelines = (mockActive && mockActive[0]) ? mockActive[0].guidelines : [];
+        }
+      }
+
+      promptText = `Você é um assistente de operações e contratos de marketing digital da agência Rakta Digital.
+Sua única tarefa é alterar a lista de Diretrizes Relevantes do serviço de marketing abaixo, aplicando estritamente a instrução do usuário.
+
+Diretrizes originais:
+${currentGuidelines.map((g, i) => `${i + 1}. ${g}`).join('\n')}
+
+Instrução de alteração do usuário:
+"${userInstruction}"
+
+Regras cruciais:
+1. NÃO invente novos prazos, obrigações, multas, regras ou limitações que não constem no texto original ou na instrução.
+2. Limite-se estritamente a adaptar, remover ou atualizar as diretrizes conforme a instrução do usuário. Se o usuário pedir para remover um item, apenas delete-o e mantenha os demais intocados.
+3. Retorne o resultado em formato de lista simples, onde cada diretriz está em uma nova linha.
+4. NUNCA utilize números de itens (como "1.", "2."), marcadores (como "-", "*", "•"), hífens ou qualquer tipo de formatação markdown (como negrito ou itálico) no início das linhas. Cada linha deve ser puramente o texto da diretriz.
+5. Retorne APENAS o conteúdo das diretrizes, sem explicações, comentários, introduções ou notas de rodapé.`;
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || "Erro desconhecido na API do Gemini.");
+    }
+
+    const data = await response.json();
+    let text = data.candidates[0].content.parts[0].text.trim();
+    
+    // Limpa possíveis marcações de código markdown do Gemini
+    text = text.replace(/^```[\w]*\n?/i, "").replace(/```$/, "").trim();
+
+    if (!isGuideline) {
+      // Salva a cláusula reescrita
+      proposalState.contractClauses[selectedKey] = text;
+    } else {
+      const serviceId = selectedKey.replace("guideline_", "");
+      // Divide por quebra de linha, filtra linhas vazias e remove números/hífens residuais do início de cada linha
+      const lines = text.split("\n")
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => {
+          return line.replace(/^(\d+\s*[\.\-]\s*|[\-\*\u2022]\s*)/i, "").trim();
+        });
+
+      if (!proposalState.customGuidelines) {
+        proposalState.customGuidelines = {};
+      }
+      proposalState.customGuidelines[serviceId] = lines;
+    }
+
+    saveToLocalStorage();
+    updateContractPreview();
+    promptInput.value = ""; // Limpa prompt após sucesso
+
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Sucesso!';
+    setTimeout(() => {
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+    }, 2000);
+
+  } catch (err) {
+    console.error("Erro ao otimizar cláusula/diretriz:", err);
+    alert("Erro ao otimizar: " + err.message);
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
+  }
+}
+
+function resetContractClause() {
+  const select = document.getElementById("contract-clause-select");
+  if (!select) return;
+
+  const selectedKey = select.value;
+  if (!selectedKey) return;
+
+  if (confirm("Tem certeza que deseja restaurar o texto padrão da Rakta para este item?")) {
+    const isGuideline = selectedKey.startsWith("guideline_");
+    if (!isGuideline) {
+      if (proposalState.contractClauses && proposalState.contractClauses[selectedKey] !== undefined) {
+        proposalState.contractClauses[selectedKey] = defaultClauses[selectedKey];
+      }
+    } else {
+      const serviceId = selectedKey.replace("guideline_", "");
+      if (proposalState.customGuidelines && proposalState.customGuidelines[serviceId] !== undefined) {
+        delete proposalState.customGuidelines[serviceId];
+      }
+    }
+
+    saveToLocalStorage();
+    updateContractPreview();
+
+    const btnReset = document.getElementById("btn-reset-clause");
+    if (btnReset) {
+      const origText = btnReset.innerHTML;
+      btnReset.innerHTML = '<i class="fa-solid fa-check"></i> Restaurado!';
+      setTimeout(() => { btnReset.innerHTML = origText; }, 2000);
+    }
   }
 }
 
@@ -2471,7 +2746,7 @@ function getContractModules(selectedServices) {
     const key = serviceToModuleKey[s.serviceId] || serviceToModuleKey[s.categoryId] || 'automacoes';
     if (modules[key]) {
       const moduleTemplate = modules[key];
-      const guidelines = serviceGuidelines[s.serviceId] || moduleTemplate.guidelines;
+      const guidelines = (proposalState.customGuidelines && proposalState.customGuidelines[s.serviceId]) || serviceGuidelines[s.serviceId] || moduleTemplate.guidelines;
       result.push({
         name: s.name,
         desc: s.description,
@@ -2587,7 +2862,8 @@ function updateContractPreview() {
     implementacaoMetodo,
     implementacaoParcelas,
     projectStartDate,
-    modulesHTML
+    modulesHTML,
+    clauses: proposalState.contractClauses
   });
 }
 
