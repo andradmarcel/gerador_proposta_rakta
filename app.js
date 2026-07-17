@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderNicheOptions();
   loadSavedState(); // Carrega o tema e estado salvos
   renderServicesSelector();
-  rebuildActiveServiceCardsFromState();
+  renderActiveServices();
   setupEventListeners();
 
   // Set default contract start date to today if empty
@@ -173,10 +173,9 @@ function renderServicesSelector() {
     select.addEventListener("change", (e) => {
       const serviceId = e.target.value;
       const catId = e.target.dataset.cat;
-      const groupId = e.target.dataset.group;
 
       if (serviceId) {
-        addServiceCard(catId, serviceId, groupId);
+        addService(catId, serviceId);
         e.target.value = ""; // Reseta o select
       }
     });
@@ -194,6 +193,7 @@ function renderServicesSelector() {
 }
 
 // Popula o dropdown de serviços ocultando os já adicionados
+// Popula o dropdown de serviços ocultando os já adicionados
 function updateDropdownOptions(groupId, catId) {
   const select = document.querySelector(`.add-service-select[data-cat="${catId}"][data-group="${groupId}"]`);
   if (!select) return;
@@ -202,8 +202,10 @@ function updateDropdownOptions(groupId, catId) {
   const category = grouped[groupId].categories[catId];
   if (!category) return;
 
-  const activeList = document.getElementById(`active-list-${groupId}-${catId}`);
-  const activeIds = activeList ? Array.from(activeList.querySelectorAll(".service-card-active")).map(el => el.dataset.service) : [];
+  // Obter IDs dos serviços selecionados neste grupo e categoria a partir do ESTADO
+  const activeIds = (proposalState.selectedServices || [])
+    .filter(s => s.categoryId === catId)
+    .map(s => s.serviceId);
 
   let optionsHTML = `<option value="">+ Adicionar em ${category.title}...</option>`;
   category.services.forEach(service => {
@@ -215,26 +217,88 @@ function updateDropdownOptions(groupId, catId) {
   select.innerHTML = optionsHTML;
 }
 
-// Adiciona um card de serviço ativo para customização
-function addServiceCard(catId, serviceId, groupId) {
-  const activeList = document.getElementById(`active-list-${groupId}-${catId}`);
-  if (!activeList) return;
+function updateAllDropdownOptions() {
+  document.querySelectorAll(".add-service-select").forEach(select => {
+    const catId = select.dataset.cat;
+    const groupId = select.dataset.group;
+    updateDropdownOptions(groupId, catId);
+  });
+}
+
+// Adiciona um serviço ativo para customização no ESTADO
+function addService(catId, serviceId) {
+  // Evitar duplicados no estado
+  if (!proposalState.selectedServices) {
+    proposalState.selectedServices = [];
+  }
+  if (proposalState.selectedServices.some(s => s.serviceId === serviceId)) return;
 
   const category = servicesData[catId];
   const service = category.services.find(s => s.id === serviceId);
   const firstLevelKey = Object.keys(service.levels)[0];
   const defaultLevel = service.levels[firstLevelKey];
 
+  proposalState.selectedServices.push({
+    categoryId: catId,
+    serviceId: serviceId,
+    levelId: firstLevelKey,
+    name: service.name,
+    levelName: defaultLevel.name,
+    price: defaultLevel.price,
+    description: defaultLevel.description,
+    period: defaultLevel.period, // 'mês', 'projeto', 'setup', 'hora'
+    recurring: defaultLevel.recurring !== undefined ? defaultLevel.recurring : 0,
+    isBonus: false
+  });
+
+  saveToLocalStorage();
+  renderActiveServices();
+  updatePreview();
+}
+
+// Renderiza todos os cards ativos a partir do estado
+function renderActiveServices() {
+  const activeLists = document.querySelectorAll("[id^='active-list-']");
+  activeLists.forEach(list => {
+    list.innerHTML = "";
+  });
+
+  if (proposalState.selectedServices && proposalState.selectedServices.length > 0) {
+    proposalState.selectedServices.forEach(svc => {
+      renderServiceCard(svc);
+    });
+  }
+
+  updateAllDropdownOptions();
+  populateClauseSelect();
+}
+
+// Renderiza um único card ativo no DOM e anexa os ouvintes ao estado
+function renderServiceCard(svc) {
+  const { categoryId, serviceId, levelId, price, description, recurring, isBonus } = svc;
+  const category = servicesData[categoryId];
+  if (!category) return;
+  const service = category.services.find(s => s.id === serviceId);
+  if (!service) return;
+
+  const firstLevelKey = Object.keys(service.levels)[0];
+  const period = service.levels[firstLevelKey].period;
+  const groupId = period === "mês" ? "recorrente" : "pontual";
+
+  const activeList = document.getElementById(`active-list-${groupId}-${categoryId}`);
+  if (!activeList) return;
+
   // Opções de níveis para o select
   let levelOptions = "";
   Object.keys(service.levels).forEach(levelKey => {
-    const level = service.levels[levelKey];
-    levelOptions += `<option value="${levelKey}">${level.name}</option>`;
+    const lvl = service.levels[levelKey];
+    const selectedAttr = levelKey === levelId ? "selected" : "";
+    levelOptions += `<option value="${levelKey}" ${selectedAttr}>${lvl.name}</option>`;
   });
 
   const card = document.createElement("div");
   card.className = "service-card-active";
-  card.dataset.cat = catId;
+  card.dataset.cat = categoryId;
   card.dataset.service = serviceId;
   card.innerHTML = `
     <div class="service-card-header">
@@ -247,33 +311,33 @@ function addServiceCard(catId, serviceId, groupId) {
       <div class="grid grid-cols-2 gap-4 mb-2">
         <div>
           <label class="text-[10px] uppercase font-bold text-zinc-500">Nível</label>
-          <select class="service-level-select input-field" data-cat="${catId}" data-service="${serviceId}">
+          <select class="service-level-select input-field" data-cat="${categoryId}" data-service="${serviceId}">
             ${levelOptions}
           </select>
         </div>
         <div>
           <label class="text-[10px] uppercase font-bold text-zinc-500">Preço Principal (R$)</label>
-          <input type="number" class="service-price-input input-field" data-cat="${catId}" data-service="${serviceId}" value="${defaultLevel.price}">
+          <input type="number" class="service-price-input input-field" data-cat="${categoryId}" data-service="${serviceId}" value="${price}">
         </div>
       </div>
-      ${defaultLevel.recurring !== undefined ? `
+      ${recurring !== undefined && recurring !== 0 ? `
       <div class="mb-2">
         <label class="text-[10px] uppercase font-bold text-zinc-500">Mensalidade CRM/Chatbot (R$)</label>
-        <input type="number" class="service-recurring-input input-field" data-cat="${catId}" data-service="${serviceId}" value="${defaultLevel.recurring}">
+        <input type="number" class="service-recurring-input input-field" data-cat="${categoryId}" data-service="${serviceId}" value="${recurring}">
       </div>
       ` : ""}
       <div class="mb-2" style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" class="service-bonus-checkbox" id="bonus-${serviceId}" data-cat="${catId}" data-service="${serviceId}" style="width: 14px; height: 14px; cursor: pointer;">
+        <input type="checkbox" class="service-bonus-checkbox" id="bonus-${serviceId}" data-cat="${categoryId}" data-service="${serviceId}" ${isBonus ? "checked" : ""} style="width: 14px; height: 14px; cursor: pointer;">
         <label for="bonus-${serviceId}" style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); cursor: pointer; user-select: none; margin-bottom: 0;">Marcar como Bônus</label>
       </div>
       <div class="mb-2">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
           <label class="text-[10px] uppercase font-bold text-zinc-500" style="margin-bottom: 0;">Escopo da Entrega</label>
-          <button type="button" class="btn-optimize-single-service" data-cat="${catId}" data-service="${serviceId}" style="background: none; border: none; color: var(--rakta-red); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;" title="Otimizar este escopo com IA">
+          <button type="button" class="btn-optimize-single-service" data-cat="${categoryId}" data-service="${serviceId}" style="background: none; border: none; color: var(--rakta-red); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;" title="Otimizar este escopo com IA">
             <i class="fa-solid fa-wand-magic-sparkles"></i> Otimizar
           </button>
         </div>
-        <textarea class="service-desc-input input-field text-xs" data-cat="${catId}" data-service="${serviceId}" rows="3">${defaultLevel.description}</textarea>
+        <textarea class="service-desc-input input-field text-xs" data-cat="${categoryId}" data-service="${serviceId}" rows="3">${description}</textarea>
       </div>
     </div>
   `;
@@ -287,11 +351,15 @@ function addServiceCard(catId, serviceId, groupId) {
   const recInput = card.querySelector(".service-recurring-input");
   const btnRemove = card.querySelector(".btn-remove-service");
   const btnOptimizeSingle = card.querySelector(".btn-optimize-single-service");
+  const bonusCheckbox = card.querySelector(".service-bonus-checkbox");
+
+  // Localizador do serviço no estado
+  const getSvcState = () => proposalState.selectedServices.find(s => s.serviceId === serviceId);
 
   // Listener do botão de otimização de IA individual
   if (btnOptimizeSingle) {
     btnOptimizeSingle.addEventListener("click", () => {
-      optimizeSingleService(catId, serviceId, btnOptimizeSingle);
+      optimizeSingleService(categoryId, serviceId, btnOptimizeSingle);
     });
   }
 
@@ -299,42 +367,76 @@ function addServiceCard(catId, serviceId, groupId) {
   levelSelect.addEventListener("change", (e) => {
     const selectedLevelKey = e.target.value;
     const selectedLevel = service.levels[selectedLevelKey];
+    
+    // Atualiza estado
+    const stateSvc = getSvcState();
+    if (stateSvc) {
+      stateSvc.levelId = selectedLevelKey;
+      stateSvc.levelName = selectedLevel.name;
+      stateSvc.price = selectedLevel.price;
+      stateSvc.description = selectedLevel.description;
+      stateSvc.recurring = selectedLevel.recurring !== undefined ? selectedLevel.recurring : 0;
+    }
+
+    // Atualiza DOM local (inputs)
     priceInput.value = selectedLevel.price;
     descInput.value = selectedLevel.description;
     if (recInput) {
-      recInput.value = selectedLevel.recurring || 0;
+      recInput.value = selectedLevel.recurring !== undefined ? selectedLevel.recurring : 0;
     }
-    syncSelectedServices();
+
+    saveToLocalStorage();
     updatePreview();
   });
 
   // Listeners para digitação direta nos campos
-  priceInput.addEventListener("input", () => { syncSelectedServices(); updatePreviewDebounced(); });
-  descInput.addEventListener("input", () => { syncSelectedServices(); updatePreviewDebounced(); });
+  priceInput.addEventListener("input", (e) => {
+    const stateSvc = getSvcState();
+    if (stateSvc) {
+      stateSvc.price = parseFloat(e.target.value) || 0;
+    }
+    saveToLocalStorage();
+    updatePreviewDebounced();
+  });
+
+  descInput.addEventListener("input", (e) => {
+    const stateSvc = getSvcState();
+    if (stateSvc) {
+      stateSvc.description = e.target.value;
+    }
+    saveToLocalStorage();
+    updatePreviewDebounced();
+  });
+
   if (recInput) {
-    recInput.addEventListener("input", () => { syncSelectedServices(); updatePreviewDebounced(); });
+    recInput.addEventListener("input", (e) => {
+      const stateSvc = getSvcState();
+      if (stateSvc) {
+        stateSvc.recurring = parseFloat(e.target.value) || 0;
+      }
+      saveToLocalStorage();
+      updatePreviewDebounced();
+    });
   }
 
-  const bonusCheckbox = card.querySelector(".service-bonus-checkbox");
   if (bonusCheckbox) {
-    bonusCheckbox.addEventListener("change", () => {
-      syncSelectedServices();
+    bonusCheckbox.addEventListener("change", (e) => {
+      const stateSvc = getSvcState();
+      if (stateSvc) {
+        stateSvc.isBonus = e.target.checked;
+      }
+      saveToLocalStorage();
       updatePreview();
     });
   }
 
   // Listener para o botão de remoção
   btnRemove.addEventListener("click", () => {
-    card.remove();
-    updateDropdownOptions(groupId, catId);
-    syncSelectedServices();
+    proposalState.selectedServices = proposalState.selectedServices.filter(s => s.serviceId !== serviceId);
+    saveToLocalStorage();
+    renderActiveServices();
     updatePreview();
   });
-
-  // Atualiza as opções do dropdown e sincroniza o estado global
-  updateDropdownOptions(groupId, catId);
-  syncSelectedServices();
-  updatePreview();
 }
 
 // Configura os ouvintes de eventos da UI
@@ -702,7 +804,7 @@ function setupEventListeners() {
 
             syncFieldsFromState();
             renderServicesSelector();
-            rebuildActiveServiceCardsFromState();
+            renderActiveServices();
             updatePreview();
             alert("Rascunho importado com sucesso!");
           } else {
@@ -781,7 +883,7 @@ function setupEventListeners() {
 
         // Reconstrói seletores de serviços e esvazia cards ativos
         renderServicesSelector();
-        rebuildActiveServiceCardsFromState();
+        renderActiveServices();
 
         // Atualiza a visualização da proposta
         updatePreview();
@@ -830,44 +932,7 @@ function syncNicheFields() {
   document.getElementById("strategy-editor").value = niche.strategy;
 }
 
-// Atualiza a lista de serviços selecionados do estado (Option A - Dynamic Scanning)
-function syncSelectedServices() {
-  proposalState.selectedServices = [];
 
-  document.querySelectorAll(".service-card-active").forEach(card => {
-    const catId = card.dataset.cat;
-    const serviceId = card.dataset.service;
-
-    const levelSelect = card.querySelector(".service-level-select");
-    const levelId = levelSelect.value;
-    const priceInput = card.querySelector(".service-price-input");
-    const descInput = card.querySelector(".service-desc-input");
-    const recInput = card.querySelector(".service-recurring-input");
-
-    const category = servicesData[catId];
-    const service = category.services.find(s => s.id === serviceId);
-    const level = service.levels[levelId];
-
-    const bonusCheckbox = card.querySelector(".service-bonus-checkbox");
-    const isBonus = bonusCheckbox ? bonusCheckbox.checked : false;
-
-    proposalState.selectedServices.push({
-      categoryId: catId,
-      serviceId: serviceId,
-      levelId: levelId,
-      name: service.name,
-      levelName: level.name,
-      price: parseFloat(priceInput.value) || 0,
-      description: descInput.value,
-      period: level.period, // 'mês', 'projeto', 'setup', 'hora'
-      recurring: recInput ? (parseFloat(recInput.value) || 0) : 0,
-      isBonus: isBonus
-    });
-  });
-
-  // Atualiza as opções do select de IA de contrato
-  populateClauseSelect();
-}
 
 function populateClauseSelect() {
   const select = document.getElementById("contract-clause-select");
@@ -1776,8 +1841,7 @@ async function generateWithGemini() {
   // Salva no localStorage
   localStorage.setItem("rakta_gemini_api_key", apiKey);
 
-  // Sincroniza os serviços selecionados a partir dos inputs atuais na UI antes de enviar para a IA
-  syncSelectedServices();
+
 
   const btn = document.getElementById("btn-generate-gemini");
   const originalHTML = btn.innerHTML;
@@ -1873,8 +1937,12 @@ Retorne a resposta EXATAMENTE no formato JSON abaixo, sem blocos de código mark
       throw new Error("Formato de resposta retornado pela IA está incompleto.");
     }
 
-    // Atualiza os inputs do formulário com os novos escopos otimizados
+    // Atualiza os inputs do formulário com os novos escopos otimizados no estado e no DOM
     parsed.optimizedServices.forEach(optSrv => {
+      const stateSvc = (proposalState.selectedServices || []).find(s => s.serviceId === optSrv.id);
+      if (stateSvc) {
+        stateSvc.description = optSrv.description;
+      }
       const card = document.querySelector(`.service-card-active[data-service="${optSrv.id}"]`);
       if (card) {
         const descInput = card.querySelector(".service-desc-input");
@@ -1893,8 +1961,7 @@ Retorne a resposta EXATAMENTE no formato JSON abaixo, sem blocos de código mark
       }
     }
 
-    // Sincroniza o estado global e atualiza a visualização/PDF
-    syncSelectedServices();
+    saveToLocalStorage();
     updatePreview();
 
     // Feedback de sucesso rápido
@@ -2037,51 +2104,7 @@ function syncFieldsFromState() {
   });
 }
 
-function rebuildActiveServiceCardsFromState() {
-  if (!proposalState.selectedServices || proposalState.selectedServices.length === 0) return;
 
-  proposalState.selectedServices.forEach(savedSvc => {
-    const { categoryId, serviceId, levelId, price, description, recurring, isBonus } = savedSvc;
-    if (!servicesData[categoryId]) return;
-    const service = servicesData[categoryId].services.find(s => s.id === serviceId);
-    if (!service) return;
-
-    // Descobrir o groupId
-    const firstLevelKey = Object.keys(service.levels)[0];
-    const period = service.levels[firstLevelKey].period;
-    const groupId = period === "mês" ? "recorrente" : "pontual";
-
-    const activeList = document.getElementById(`active-list-${groupId}-${categoryId}`);
-    if (!activeList) return;
-
-    // Evita duplicação
-    if (activeList.querySelector(`.service-card-active[data-service="${serviceId}"]`)) return;
-
-    addServiceCard(categoryId, serviceId, groupId);
-
-    // Restaura valores específicos no card
-    const card = activeList.querySelector(`.service-card-active[data-service="${serviceId}"]`);
-    if (!card) return;
-
-    const levelSelect = card.querySelector(".service-level-select");
-    if (levelSelect && levelId) levelSelect.value = levelId;
-
-    const priceInput = card.querySelector(".service-price-input");
-    if (priceInput && price !== undefined) priceInput.value = price;
-
-    const descInput = card.querySelector(".service-desc-input");
-    if (descInput && description) descInput.value = description;
-
-    const recInput = card.querySelector(".service-recurring-input");
-    if (recInput && recurring !== undefined) recInput.value = recurring;
-
-    const bonusCheckbox = card.querySelector(".service-bonus-checkbox");
-    if (bonusCheckbox) bonusCheckbox.checked = isBonus || false;
-  });
-
-  // Após reconstruir, limpa o selectedServices do estado e re-sincroniza para evitar duplicações
-  syncSelectedServices();
-}
 
 // ============================================================
 // SERVIÇO CUSTOMIZADO
@@ -2218,7 +2241,11 @@ Retorne SOMENTE a string dos entregáveis, sem JSON, sem listas com hífens, sem
 
     if (descInput) {
       descInput.value = text;
-      syncSelectedServices();
+      const stateSvc = (proposalState.selectedServices || []).find(s => s.serviceId === serviceId);
+      if (stateSvc) {
+        stateSvc.description = text;
+      }
+      saveToLocalStorage();
       updatePreview();
     }
 
