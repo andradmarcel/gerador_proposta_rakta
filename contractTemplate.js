@@ -299,7 +299,7 @@ export function getContractTemplateHTML(data) {
         }
       }
       .contract-document * {
-        font-family: Arial, sans-serif !important;
+        font-family: 'Neue Montreal', Arial, sans-serif !important;
       }
       
       /* Otimização de espaçamento para manter as tabelas de identificação e financeiras juntas na mesma página (aplica apenas ao corpo do contrato, não afetando a capa) */

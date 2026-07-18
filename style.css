@@ -1,3 +1,38 @@
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./fonts/NeueMontreal-Regular.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./fonts/NeueMontreal-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./fonts/NeueMontreal-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./fonts/NeueMontreal-Medium.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./fonts/NeueMontreal-Medium.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
+
 /* Cores e Sistema de Design Rakta.digital */
 :root {
   --bg-dark: #050506;
@@ -10,8 +45,8 @@
   --text-primary: #ffffff;
   --text-secondary: #a1a1aa;
   --text-muted: #52525b;
-  --font-display: 'Space Grotesk', 'Inter', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-display: 'Neue Montreal', 'Space Grotesk', 'Inter', sans-serif;
+  --font-body: 'Neue Montreal', 'Inter', sans-serif;
 }
 
 :root[data-theme="gold"] {

@@ -1313,7 +1313,7 @@ function updatePreview() {
       <div class="contact-box-overlay">
         <div class="contact-title">DÚVIDAS OU PRÓXIMOS PASSOS? FALE CONOSCO</div>
         <div class="contact-links">
-          <span><i class="fas fa-envelope"></i> marcel.andrade@rakta.digital</span>
+          <span><i class="fas fa-envelope"></i> comercial@rakta.digital</span>
           <span><i class="fas fa-globe"></i> www.rakta.digital</span>
           <span><i class="fa-solid fa-phone"></i> (71) 3190-1921</span>
         </div>
