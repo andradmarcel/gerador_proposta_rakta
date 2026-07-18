@@ -1478,7 +1478,7 @@ textarea.input-field {
   flex-shrink: 0;
   background: #ffffff;
   color: #1a1a1e;
-  padding: 30mm 20mm 20mm 30mm;
+  padding: 30mm 20mm 20mm 20mm;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
   border-radius: 4px;
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
@@ -1659,7 +1659,7 @@ textarea.input-field {
   body.print-contract-mode .contract-document {
     width: 210mm !important;
     min-height: 297mm !important;
-    padding: 0 20mm 0 30mm !important;
+    padding: 0 20mm 0 20mm !important;
     margin: 0 auto !important;
     box-shadow: none !important;
     border: none !important;
