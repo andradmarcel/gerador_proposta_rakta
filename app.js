@@ -741,21 +741,81 @@ function setupEventListeners() {
   }
 
   // --- Exportar Rascunho JSON ---
+  const exportProposalState = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(proposalState, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    const clientNameCleaned = proposalState.clientName.replace(/[\\/:*?"<>|]/g, "").trim() || "Cliente";
+    downloadAnchor.setAttribute("download", `Proposta Rakta - ${clientNameCleaned}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
   const btnExport = document.getElementById("btn-export-json");
   if (btnExport) {
-    btnExport.addEventListener("click", () => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(proposalState, null, 2));
-      const downloadAnchor = document.createElement("a");
-      downloadAnchor.setAttribute("href", dataStr);
-      const clientNameCleaned = proposalState.clientName.replace(/[\\/:*?"<>|]/g, "").trim() || "Cliente";
-      downloadAnchor.setAttribute("download", `Proposta Rakta - ${clientNameCleaned}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-    });
+    btnExport.addEventListener("click", exportProposalState);
+  }
+
+  const btnExportContract = document.getElementById("btn-export-json-contract");
+  if (btnExportContract) {
+    btnExportContract.addEventListener("click", exportProposalState);
   }
 
   // --- Importar Rascunho JSON ---
+  const importProposalState = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (parsed && typeof parsed === "object" && parsed.clientName) {
+          proposalState = { ...proposalState, ...parsed };
+
+          // Restore custom services in servicesData
+          if (proposalState.selectedServices) {
+            proposalState.selectedServices.forEach(s => {
+              if (s.serviceId && s.serviceId.startsWith("custom_")) {
+                const categoryId = s.categoryId;
+                if (servicesData[categoryId]) {
+                  const alreadyExists = servicesData[categoryId].services.some(orig => orig.id === s.serviceId);
+                  if (!alreadyExists) {
+                    servicesData[categoryId].services.push({
+                      id: s.serviceId,
+                      name: s.name,
+                      isCustom: true,
+                      levels: {
+                        custom: {
+                          name: s.period === "mês" ? "Nível Personalizado" : "Projeto Único",
+                          price: s.price,
+                          period: s.period,
+                          recurring: s.recurring,
+                          description: s.description
+                        }
+                      }
+                    });
+                  }
+                }
+              }
+            });
+          }
+
+          syncFieldsFromState();
+          renderServicesSelector();
+          renderActiveServices();
+          updatePreview();
+          updateContractPreview();
+          alert("Rascunho importado com sucesso!");
+        } else {
+          alert("Arquivo JSON inválido. Certifique-se de que é uma proposta Rakta.");
+        }
+      } catch (err) {
+        alert("Erro ao ler o arquivo JSON: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const btnImport = document.getElementById("btn-import-json");
   const importFile = document.getElementById("import-json-file");
   if (btnImport && importFile) {
@@ -763,57 +823,245 @@ function setupEventListeners() {
       importFile.click();
     });
     importFile.addEventListener("change", (e) => {
+      importProposalState(e.target.files[0]);
+      e.target.value = ""; // Reset
+    });
+  }
+
+  const btnImportContract = document.getElementById("btn-import-json-contract");
+  const importFileContract = document.getElementById("import-json-file-contract");
+  if (btnImportContract && importFileContract) {
+    btnImportContract.addEventListener("click", () => {
+      importFileContract.click();
+    });
+    importFileContract.addEventListener("change", (e) => {
+      importProposalState(e.target.files[0]);
+      e.target.value = ""; // Reset
+    });
+  }
+
+  // --- Importar Contrato de PDF Assinado (IA) ---
+  const btnImportPdf = document.getElementById("btn-import-pdf-contract");
+  const importFilePdf = document.getElementById("import-pdf-contract-file");
+  if (btnImportPdf && importFilePdf) {
+    btnImportPdf.addEventListener("click", () => {
+      // Check API key first
+      const apiKeyInput = document.getElementById("gemini-api-key");
+      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+      if (!apiKey) {
+        alert("Por favor, insira uma Chave de API do Gemini para prosseguir.");
+        return;
+      }
+      importFilePdf.click();
+    });
+
+    importFilePdf.addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        try {
-          const parsed = JSON.parse(event.target.result);
-          if (parsed && typeof parsed === "object" && parsed.clientName) {
-            proposalState = { ...proposalState, ...parsed };
 
-            // Restore custom services in servicesData
-            if (proposalState.selectedServices) {
-              proposalState.selectedServices.forEach(s => {
-                if (s.serviceId && s.serviceId.startsWith("custom_")) {
-                  const categoryId = s.categoryId;
-                  if (servicesData[categoryId]) {
-                    const alreadyExists = servicesData[categoryId].services.some(orig => orig.id === s.serviceId);
-                    if (!alreadyExists) {
-                      servicesData[categoryId].services.push({
-                        id: s.serviceId,
-                        name: s.name,
-                        isCustom: true,
-                        levels: {
-                          custom: {
-                            name: s.period === "mês" ? "Nível Personalizado" : "Projeto Único",
-                            price: s.price,
-                            period: s.period,
-                            recurring: s.recurring,
-                            description: s.description
-                          }
+      const apiKeyInput = document.getElementById("gemini-api-key");
+      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+
+      const originalHTML = btnImportPdf.innerHTML;
+      btnImportPdf.disabled = true;
+      btnImportPdf.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Lendo PDF com IA...';
+
+      try {
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            const rawBase64 = reader.result.split(',')[1];
+            resolve(rawBase64);
+          };
+          reader.onerror = (error) => reject(error);
+        });
+
+        const prompt = `Você é um assistente de IA especializado em analisar contratos comerciais em PDF da agência Rakta Digital.
+Seu objetivo é analisar o contrato PDF fornecido e extrair todas as informações estruturadas para podermos preencher a interface de edição do gerador de propostas/contratos.
+
+Aqui está o banco de dados de serviços cadastrados na agência para você mapear os serviços encontrados no contrato (associe ao id e categoryId corretos, e escolha o levelId que melhor se aproxima do preço/descrição):
+${JSON.stringify(servicesData, null, 2)}
+
+Regras de extração de serviços:
+1. Analise a seção de Módulos, Escopo ou Serviços do contrato.
+2. Para cada serviço encontrado no contrato:
+   - Se ele corresponder a um serviço existente em nosso banco de dados, preencha:
+     - "categoryId": a chave da categoria (ex: "performance", "branding", etc.)
+     - "serviceId": o id do serviço (ex: "midia_paga", "social_media", etc.)
+     - "levelId": o id do nível (ex: "entrada", "intermediario", "avancado", etc.)
+     - "name": o nome oficial do serviço no banco
+     - "price": o preço cobrado por esse serviço no contrato
+     - "description": a descrição exata das entregas do serviço conforme escrito no contrato
+     - "period": "mês", "projeto", "setup", ou "hora" (conforme o tipo de cobrança no contrato)
+     - "recurring": se aplicável (ex: mensalidade de manutenção de CRM/chatbot), senão 0
+     - "isBonus": true se estiver indicado que é gratuito, bônus ou cortesia no contrato (ou se o preço for R$ 0), senão false
+   - Se for um serviço personalizado que não está em nosso banco de dados, preencha:
+     - "categoryId": mapeie para a categoria mais próxima (ex: "performance", "tecnologia", etc.)
+     - "serviceId": crie um id único iniciando com "custom_" (ex: "custom_1700000000000")
+     - "levelId": "custom"
+     - "name": o nome do serviço personalizado escrito no contrato
+     - "price": o preço cobrado no contrato
+     - "description": as entregas do serviço conforme escrito no contrato
+     - "period": "mês" ou "projeto"
+     - "recurring": se aplicável, ou 0
+     - "isBonus": true se for bônus/cortesia, senão false
+
+Regras de extração de campos gerais do contrato:
+- Extraia os dados da Contratante (Razão Social, CNPJ, Telefone, Endereço, Representante Legal, E-mail).
+- Extraia as condições de pagamento e vigência:
+  - "contractStartDate": a data de início do contrato no formato YYYY-MM-DD
+  - "contractDueDayRec": o dia de vencimento mensal (número, ex: 5)
+  - "contractPaymentRec": método de pagamento da recorrência (ex: "Boleto bancário", "Pix", "Cartão de crédito", etc.)
+  - "contractPaymentSetup": método de pagamento do setup (ex: "Pix", "Boleto bancário", etc.)
+  - "contractSetupInstallments": quantidade de parcelas do setup/projetos (número)
+  - "contractTerm": o prazo contratual (ex: "Aviso prévio de 30 dias" ou vigência de "6 meses", etc.)
+  - "paymentTerms": os termos de pagamento mensal escritos
+  - "setupPaymentTerms": os termos de pagamento do setup escritos
+  - "mediaInvestment": investimento em mídia recomendado (ex: "R$ 2.000,00 a R$ 5.000,00 / mês")
+  - "workStart": prazo para início dos trabalhos (ex: "D+10 dias úteis...")
+  - "proposalNotes": observações ou notas
+- Extraia as cláusulas contratuais customizadas (especialmente as cláusulas 1 a 13) se você notar que elas diferem das cláusulas padrão jurídicas (preservando a formatação HTML delas se possível, ou reescrevendo-as com a nova redação encontrada no contrato). Retorne as cláusulas em um objeto "contractClauses" onde cada chave é "clause1", "clause2", etc. Se uma cláusula for exatamente igual ao padrão ou se você não identificar alterações nela, não precisa retornar a chave correspondente.
+
+Retorne EXATAMENTE um objeto JSON estruturado no formato abaixo, sem qualquer texto extra ou cercas de código markdown (como \`\`\`json):
+{
+  "clientName": "Razão Social ou Nome do Cliente",
+  "projectName": "Nome do Projeto",
+  "validityDays": 15,
+  "niche": "ecommerce", // escolha o nicho mais próximo: "ecommerce", "saas", "health", "local", "realestate", "infoproducts"
+  "nicheName": "E-commerce & Varejo Digital",
+  "contractCompany": "Razão Social ou Nome",
+  "contractCNPJ": "Apenas os números do CNPJ",
+  "contractPhone": "Telefone da contratante",
+  "contractAddress": "Endereço completo",
+  "contractRepName": "Nome do representante",
+  "contractRepEmail": "E-mail do representante",
+  "contractDueDayRec": 5,
+  "contractPaymentRec": "Boleto bancário",
+  "contractPaymentSetup": "Pix",
+  "contractSetupInstallments": 6,
+  "contractStartDate": "YYYY-MM-DD",
+  "contractTerm": "Aviso prévio de 30 dias",
+  "paymentTerms": "Texto do faturamento mensal...",
+  "setupPaymentTerms": "Texto do faturamento de setups...",
+  "mediaInvestment": "Investimento em mídia...",
+  "workStart": "Início dos trabalhos...",
+  "proposalNotes": "Observações...",
+  "selectedServices": [
+    {
+      "categoryId": "...",
+      "serviceId": "...",
+      "levelId": "...",
+      "name": "...",
+      "price": 0,
+      "description": "...",
+      "period": "...",
+      "recurring": 0,
+      "isBonus": false
+    }
+  ],
+  "contractClauses": {
+    "clause1": "html da cláusula 1 se customizada...",
+    "clause3": "html da cláusula 3 se customizada...",
+    "clause11": "html da cláusula 11 se customizada..."
+  }
+}
+`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+        const response = await fetchWithTimeout(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: "application/pdf",
+                    data: base64Data
+                  }
+                },
+                {
+                  text: prompt
+                }
+              ]
+            }]
+          })
+        }, 30000);
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error?.message || "Erro desconhecido na API.");
+        }
+
+        const data = await response.json();
+        let text = data.candidates[0].content.parts[0].text.trim();
+
+        if (text.startsWith("```")) {
+          text = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+        }
+
+        const parsed = JSON.parse(text);
+
+        if (parsed && typeof parsed === "object" && (parsed.clientName || parsed.contractCompany)) {
+          proposalState = { ...proposalState, ...parsed };
+
+          // Restore custom services in servicesData
+          if (proposalState.selectedServices) {
+            proposalState.selectedServices.forEach(s => {
+              if (s.serviceId && s.serviceId.startsWith("custom_")) {
+                const categoryId = s.categoryId;
+                if (servicesData[categoryId]) {
+                  const alreadyExists = servicesData[categoryId].services.some(orig => orig.id === s.serviceId);
+                  if (!alreadyExists) {
+                    servicesData[categoryId].services.push({
+                      id: s.serviceId,
+                      name: s.name,
+                      isCustom: true,
+                      levels: {
+                        custom: {
+                          name: s.period === "mês" ? "Nível Personalizado" : "Projeto Único",
+                          price: s.price,
+                          period: s.period,
+                          recurring: s.recurring,
+                          description: s.description
                         }
-                      });
-                    }
+                      }
+                    });
                   }
                 }
-              });
-            }
-
-            syncFieldsFromState();
-            renderServicesSelector();
-            renderActiveServices();
-            updatePreview();
-            alert("Rascunho importado com sucesso!");
-          } else {
-            alert("Arquivo JSON inválido. Certifique-se de que é uma proposta Rakta.");
+              }
+            });
           }
-        } catch (err) {
-          alert("Erro ao ler o arquivo JSON: " + err.message);
+
+          syncFieldsFromState();
+          renderServicesSelector();
+          renderActiveServices();
+          updatePreview();
+          updateContractPreview();
+
+          btnImportPdf.innerHTML = '<i class="fa-solid fa-check"></i> Importado!';
+          setTimeout(() => {
+            btnImportPdf.innerHTML = originalHTML;
+            btnImportPdf.disabled = false;
+          }, 2000);
+
+          alert("Contrato importado com sucesso via Inteligência Artificial!");
+        } else {
+          alert("Não foi possível identificar informações válidas no PDF. Verifique se é um modelo de contrato Rakta.");
+          btnImportPdf.innerHTML = originalHTML;
+          btnImportPdf.disabled = false;
         }
-      };
-      reader.readAsText(file);
-      e.target.value = ""; // Reset
+
+      } catch (err) {
+        console.error("Erro ao importar contrato em PDF:", err);
+        alert("Erro ao ler o arquivo PDF com IA: " + err.message);
+        btnImportPdf.innerHTML = originalHTML;
+        btnImportPdf.disabled = false;
+      }
+      e.target.value = ""; // Reset file input
     });
   }
 
@@ -1862,12 +2110,15 @@ function saveToSessionStorage() {
   _autoSaveTimeout = setTimeout(() => {
     try {
       sessionStorage.setItem("rakta_proposal_state", JSON.stringify(proposalState));
-      const indicator = document.getElementById("autosave-indicator");
-      if (indicator) {
-        indicator.style.display = "block";
-        clearTimeout(indicator._hideTimer);
-        indicator._hideTimer = setTimeout(() => { indicator.style.display = "none"; }, 3000);
-      }
+      const indicators = ["autosave-indicator", "autosave-indicator-contract"];
+      indicators.forEach(id => {
+        const indicator = document.getElementById(id);
+        if (indicator) {
+          indicator.style.display = "block";
+          clearTimeout(indicator._hideTimer);
+          indicator._hideTimer = setTimeout(() => { indicator.style.display = "none"; }, 3000);
+        }
+      });
     } catch (e) {
       console.warn("Erro ao salvar no sessionStorage:", e);
     }
