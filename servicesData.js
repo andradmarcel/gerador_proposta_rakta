@@ -12,7 +12,7 @@ export const servicesData = {
             name: "Nível Entrada",
             price: 990,
             period: "mês",
-            description: "Inclui a gestão de 2 plataformas (Meta e Google)\nlimite de até R$ 3k de verba\n1 campanha ativa\nrelatório mensal básico\notimização quinzenal."
+            description: "Inclui a gestão de 2 plataformas (Meta e Google)\nlimite de até R$ 3k de verba\n1 campanha ativa\nrelatório mensal básico\notimização semanal."
           },
           intermediario: {
             name: "Nível Intermediário",
