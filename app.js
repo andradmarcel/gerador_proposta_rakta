@@ -1601,7 +1601,7 @@ function updatePreview() {
                 ${totals.totalOneOffAndSetup > 0 ? `<li><strong>Projetos e Setups:</strong> ${proposalState.setupPaymentTerms}</li>` : ""}
                 ${proposalState.mediaInvestment ? `<li><strong>Investimento em Mídia:</strong> ${proposalState.mediaInvestment}</li>` : ""}
                 <li><strong>Início dos Trabalhos:</strong> ${proposalState.workStart}</li>
-                ${proposalState.proposalNotes ? `<li style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.05);"><strong>Observações:</strong> ${proposalState.proposalNotes}</li>` : ""}
+                ${proposalState.proposalNotes ? `<li style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.05);"><strong style="display: block; margin-bottom: 4px; color: #fff;">Observações:</strong><div style="white-space: pre-line; color: var(--text-secondary); line-height: 1.4;">${proposalState.proposalNotes}</div></li>` : ""}
               </ul>
             </div>
             <div class="signatures-block">
