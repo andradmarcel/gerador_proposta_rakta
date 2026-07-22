@@ -105,6 +105,10 @@
               </button>
               <input type="file" id="import-json-file" accept=".json" style="display: none;">
             </div>
+            <button type="button" id="btn-import-gdrive-json" class="btn-gdrive"
+              style="width: 100%; margin-top: 8px; font-size: 11px; padding: 8px 12px; margin-bottom: 0;">
+              <i class="fa-brands fa-google-drive"></i> Importar do Drive
+            </button>
             <button type="button" id="btn-reset-proposal" class="btn-reset">
               <i class="fa-solid fa-rotate-left"></i> Limpar Tudo / Resetar
             </button>
@@ -403,6 +407,10 @@
               </button>
               <input type="file" id="import-json-file-contract" accept=".json" style="display: none;">
             </div>
+            <button type="button" id="btn-import-gdrive-json-contract" class="btn-gdrive"
+              style="width: 100%; margin-top: 8px; font-size: 11px; padding: 8px 12px; margin-bottom: 0;">
+              <i class="fa-brands fa-google-drive"></i> Importar do Drive
+            </button>
             <p id="autosave-indicator-contract"
               style="color: #10b981; font-size: 10px; margin-top: 8px; font-weight: 600; display: none;">
               <i class="fa-solid fa-circle-check"></i> Alterações salvas localmente
@@ -637,6 +645,49 @@
       <div class="rakta-modal-footer">
         <button type="button" id="btn-close-validation-modal" class="rakta-modal-btn">
           Entendido, Corrigir Agora
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE IMPORTAÇÃO DO GOOGLE DRIVE -->
+  <div id="gdrive-import-modal" class="rakta-modal-overlay">
+    <div class="rakta-modal-content" style="max-width: 580px;">
+      <div class="rakta-modal-header">
+        <div class="rakta-modal-icon" style="background: rgba(66, 133, 244, 0.15); color: #4285F4; border-color: rgba(66, 133, 244, 0.3);">
+          <i class="fa-brands fa-google-drive"></i>
+        </div>
+        <div style="flex: 1;">
+          <h3 class="rakta-modal-title">Importar do Google Drive</h3>
+          <p class="rakta-modal-subtitle">Selecione um rascunho de proposta ou contrato armazenado na nuvem.</p>
+        </div>
+        <button type="button" id="btn-close-gdrive-modal" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 4px;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Abas do Modal (Propostas vs Contratos) -->
+      <div class="gdrive-modal-tabs" style="display: flex; gap: 8px; margin: 15px 0 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+        <button type="button" id="gdrive-tab-proposal" class="gdrive-tab active" style="flex: 1; padding: 8px 12px; font-size: 11px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer; font-weight: 600;">
+          <i class="fa-solid fa-file-invoice"></i> Propostas (.JSON)
+        </button>
+        <button type="button" id="gdrive-tab-contract" class="gdrive-tab" style="flex: 1; padding: 8px 12px; font-size: 11px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600;">
+          <i class="fa-solid fa-file-signature"></i> Contratos (.JSON)
+        </button>
+      </div>
+
+      <div class="rakta-modal-body" style="padding-top: 5px;">
+        <div id="gdrive-file-list" class="gdrive-file-list" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          <!-- Itens populados via JavaScript -->
+        </div>
+      </div>
+
+      <div class="rakta-modal-footer" style="justify-content: space-between; align-items: center;">
+        <button type="button" id="btn-refresh-gdrive-files" class="btn-secondary" style="font-size: 11px; padding: 6px 12px; margin-bottom: 0;">
+          <i class="fa-solid fa-arrows-rotate"></i> Atualizar Lista
+        </button>
+        <button type="button" id="btn-cancel-gdrive-modal" class="rakta-modal-btn">
+          Cancelar
         </button>
       </div>
     </div>

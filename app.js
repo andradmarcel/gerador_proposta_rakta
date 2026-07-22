@@ -447,6 +447,51 @@ function renderServiceCard(svc) {
   });
 }
 
+// --- Aplicar Estado do Rascunho Importado (Local ou Drive) ---
+function applyParsedProposalState(parsed) {
+  if (!parsed || typeof parsed !== "object" || (!parsed.clientName && !parsed.contractCompany)) {
+    throw new Error("Arquivo JSON inválido. Certifique-se de que é um rascunho de proposta ou contrato Rakta.");
+  }
+
+  proposalState = { ...proposalState, ...parsed };
+
+  // Restaurar serviços customizados no catálogo global (servicesData)
+  if (proposalState.selectedServices) {
+    proposalState.selectedServices.forEach(s => {
+      if (s.serviceId && s.serviceId.startsWith("custom_")) {
+        const categoryId = s.categoryId;
+        if (servicesData[categoryId]) {
+          const alreadyExists = servicesData[categoryId].services.some(orig => orig.id === s.serviceId);
+          if (!alreadyExists) {
+            servicesData[categoryId].services.push({
+              id: s.serviceId,
+              name: s.name,
+              isCustom: true,
+              levels: {
+                custom: {
+                  name: s.period === "mês" ? "Nível Personalizado" : "Projeto Único",
+                  price: s.price,
+                  period: s.period,
+                  recurring: s.recurring,
+                  description: s.description
+                }
+              }
+            });
+          }
+        }
+      }
+    });
+  }
+
+  saveToSessionStorage();
+  syncFieldsFromState();
+  renderServicesSelector();
+  renderActiveServices();
+  updatePreview();
+  updateContractPreview();
+  updateContractValidationUI();
+}
+
 // Configura os ouvintes de eventos da UI
 function setupEventListeners() {
   // Abas de Modo (Proposta vs Contrato)
@@ -541,6 +586,19 @@ function setupEventListeners() {
       
       e.target.value = formatCNPJ(rawVal);
       proposalState.contractCNPJ = rawVal;
+      saveToSessionStorage();
+      updateContractPreview();
+      updateContractValidationUI();
+    });
+  }
+
+  // Formatador automático e validação de Telefone no input
+  const phoneInput = document.getElementById("contract-phone-input");
+  if (phoneInput) {
+    phoneInput.addEventListener("input", (e) => {
+      let formatted = formatPhone(e.target.value);
+      e.target.value = formatted;
+      proposalState.contractPhone = formatted;
       saveToSessionStorage();
       updateContractPreview();
       updateContractValidationUI();
@@ -881,54 +939,15 @@ function setupEventListeners() {
     btnExportContract.addEventListener("click", exportContractState);
   }
 
-  // --- Importar Rascunho JSON ---
+  // --- Importar Rascunho JSON Local ---
   const importProposalState = (file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function (event) {
       try {
         const parsed = JSON.parse(event.target.result);
-        if (parsed && typeof parsed === "object" && parsed.clientName) {
-          proposalState = { ...proposalState, ...parsed };
-
-          // Restore custom services in servicesData
-          if (proposalState.selectedServices) {
-            proposalState.selectedServices.forEach(s => {
-              if (s.serviceId && s.serviceId.startsWith("custom_")) {
-                const categoryId = s.categoryId;
-                if (servicesData[categoryId]) {
-                  const alreadyExists = servicesData[categoryId].services.some(orig => orig.id === s.serviceId);
-                  if (!alreadyExists) {
-                    servicesData[categoryId].services.push({
-                      id: s.serviceId,
-                      name: s.name,
-                      isCustom: true,
-                      levels: {
-                        custom: {
-                          name: s.period === "mês" ? "Nível Personalizado" : "Projeto Único",
-                          price: s.price,
-                          period: s.period,
-                          recurring: s.recurring,
-                          description: s.description
-                        }
-                      }
-                    });
-                  }
-                }
-              }
-            });
-          }
-
-          syncFieldsFromState();
-          renderServicesSelector();
-          renderActiveServices();
-          updatePreview();
-          updateContractPreview();
-          updateContractValidationUI();
-          alert("Rascunho importado com sucesso!");
-        } else {
-          alert("Arquivo JSON inválido. Certifique-se de que é uma proposta Rakta.");
-        }
+        applyParsedProposalState(parsed);
+        alert("Rascunho importado com sucesso!");
       } catch (err) {
         alert("Erro ao ler o arquivo JSON: " + err.message);
       }
@@ -959,6 +978,51 @@ function setupEventListeners() {
       e.target.value = ""; // Reset
     });
   }
+
+  // Botões de Importar do Google Drive (Sidebar)
+  const btnImportGDriveProposal = document.getElementById("btn-import-gdrive-json");
+  if (btnImportGDriveProposal) {
+    btnImportGDriveProposal.addEventListener("click", () => openGDriveImportModal('proposal'));
+  }
+
+  const btnImportGDriveContract = document.getElementById("btn-import-gdrive-json-contract");
+  if (btnImportGDriveContract) {
+    btnImportGDriveContract.addEventListener("click", () => openGDriveImportModal('contract'));
+  }
+
+  // Ouvintes do Modal de Importação do Drive
+  const btnCloseGDriveModal = document.getElementById("btn-close-gdrive-modal");
+  const btnCancelGDriveModal = document.getElementById("btn-cancel-gdrive-modal");
+  const btnRefreshGDriveFiles = document.getElementById("btn-refresh-gdrive-files");
+  const gdriveModalOverlay = document.getElementById("gdrive-import-modal");
+
+  if (btnCloseGDriveModal) btnCloseGDriveModal.addEventListener("click", hideGDriveImportModal);
+  if (btnCancelGDriveModal) btnCancelGDriveModal.addEventListener("click", hideGDriveImportModal);
+  if (btnRefreshGDriveFiles) btnRefreshGDriveFiles.addEventListener("click", loadGDriveFilesIntoModal);
+  if (gdriveModalOverlay) {
+    gdriveModalOverlay.addEventListener("click", (e) => {
+      if (e.target === gdriveModalOverlay) hideGDriveImportModal();
+    });
+  }
+
+  // Abas do Modal do Drive
+  const tabGDriveProp = document.getElementById("gdrive-tab-proposal");
+  const tabGDriveCont = document.getElementById("gdrive-tab-contract");
+  if (tabGDriveProp) {
+    tabGDriveProp.addEventListener("click", () => {
+      currentGDriveImportType = 'proposal';
+      updateGDriveModalTabsUI();
+      loadGDriveFilesIntoModal();
+    });
+  }
+  if (tabGDriveCont) {
+    tabGDriveCont.addEventListener("click", () => {
+      currentGDriveImportType = 'contract';
+      updateGDriveModalTabsUI();
+      loadGDriveFilesIntoModal();
+    });
+  }
+
 
 
 
@@ -1659,6 +1723,59 @@ function isValidCNPJ(value) {
   return true;
 }
 
+function formatPhone(value) {
+  if (!value) return "";
+  let clean = value.replace(/\D/g, "");
+  if (clean.length > 11) clean = clean.substring(0, 11);
+  
+  if (clean.length > 10) {
+    // Celular: (XX) 9XXXX-XXXX
+    return clean.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")
+                .replace(/^(\d{2})(\d{5})(\d{1,4})/, "($1) $2-$3")
+                .replace(/^(\d{2})(\d{1,5})/, "($1) $2");
+  } else if (clean.length > 6) {
+    // Fixo: (XX) XXXX-XXXX
+    return clean.replace(/^(\d{2})(\d{4})(\d{1,4})$/, "($1) $2-$3")
+                .replace(/^(\d{2})(\d{1,4})/, "($1) $2");
+  } else if (clean.length > 2) {
+    return clean.replace(/^(\d{2})(\d{1,4})/, "($1) $2");
+  } else if (clean.length > 0) {
+    return clean.replace(/^(\d{1,2})/, "($1");
+  }
+  return clean;
+}
+
+function isValidPhone(value) {
+  if (!value) return false;
+  const digits = value.toString().replace(/\D/g, "");
+  
+  // Telefone no Brasil deve conter 10 dígitos (fixo) ou 11 dígitos (celular)
+  if (digits.length !== 10 && digits.length !== 11) return false;
+  
+  // Rejeita sequências repetitivas (ex: "00000000000", "11111111111", etc.)
+  if (/^(\d)\1+$/.test(digits)) return false;
+
+  // Validação dos DDDs válidos no Brasil
+  const ddd = parseInt(digits.substring(0, 2), 10);
+  const validDDDs = [
+    11, 12, 13, 14, 15, 16, 17, 18, 19,
+    21, 22, 24, 27, 28,
+    31, 32, 33, 34, 35, 37, 38,
+    41, 42, 43, 44, 45, 46, 47, 48, 49,
+    51, 53, 54, 55,
+    61, 62, 63, 64, 65, 66, 67, 68, 69,
+    71, 73, 74, 75, 77, 79,
+    81, 82, 83, 84, 85, 86, 87, 88, 89,
+    91, 92, 93, 94, 95, 96, 97, 98, 99
+  ];
+  if (!validDDDs.includes(ddd)) return false;
+
+  // Se for celular (11 dígitos), o primeiro número do telefone (3º dígito) deve ser 9
+  if (digits.length === 11 && digits[2] !== '9') return false;
+
+  return true;
+}
+
 function isValidEmail(email) {
   if (!email) return false;
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1706,16 +1823,29 @@ function validateContractFields() {
     fieldStates["contract-cnpj-input"] = { valid: true, msg: "CNPJ válido." };
   }
 
-  // 3. Telefone
+  // 3. Telefone com DDD e dígitos válidos
   const phoneVal = (proposalState.contractPhone || "").trim();
-  if (!phoneVal) {
+  const cleanPhone = phoneVal.replace(/\D/g, "");
+  if (!cleanPhone) {
     errors.push({
       fieldId: "contract-phone-input",
       message: "Telefone de contato da Contratante não foi preenchido."
     });
-    fieldStates["contract-phone-input"] = { valid: false, msg: "Campo obrigatório." };
+    fieldStates["contract-phone-input"] = { valid: false, msg: "Telefone é obrigatório." };
+  } else if (cleanPhone.length < 10) {
+    errors.push({
+      fieldId: "contract-phone-input",
+      message: "Telefone incompleto (informe o DDD + número)."
+    });
+    fieldStates["contract-phone-input"] = { valid: false, msg: "Incompleto (informe DDD + número)." };
+  } else if (!isValidPhone(phoneVal)) {
+    errors.push({
+      fieldId: "contract-phone-input",
+      message: "Telefone de contato possui DDD ou número inválido."
+    });
+    fieldStates["contract-phone-input"] = { valid: false, msg: "Telefone inválido (DDD ou número incorreto)." };
   } else {
-    fieldStates["contract-phone-input"] = { valid: true, msg: "" };
+    fieldStates["contract-phone-input"] = { valid: true, msg: "Telefone válido." };
   }
 
   // 4. Endereço Completo
@@ -1961,6 +2091,28 @@ function updateGDriveStatusUI(isConnected = false, email = "") {
   }
 }
 
+// Tenta restaurar a sessão persistida do Google Drive
+function checkAndRestoreGDriveSession() {
+  const savedToken = localStorage.getItem("gdrive_access_token");
+  const expStr = localStorage.getItem("gdrive_access_token_exp");
+  const expiresAt = expStr ? parseInt(expStr, 10) : 0;
+
+  if (savedToken && Date.now() < expiresAt) {
+    gdriveAccessToken = savedToken;
+    updateGDriveStatusUI(true);
+  } else if (savedToken) {
+    localStorage.removeItem("gdrive_access_token");
+    localStorage.removeItem("gdrive_access_token_exp");
+    updateGDriveStatusUI(false);
+  }
+}
+
+// Executar verificação de restauração imediata
+checkAndRestoreGDriveSession();
+window.addEventListener("load", () => {
+  checkAndRestoreGDriveSession();
+});
+
 // Inicializa a autenticação OAuth do Google Identity Services
 function initGoogleDriveAuth(interactive = false) {
   const config = saveGDriveConfigFromUI();
@@ -1982,7 +2134,10 @@ function initGoogleDriveAuth(interactive = false) {
       callback: (tokenResponse) => {
         if (tokenResponse && tokenResponse.access_token) {
           gdriveAccessToken = tokenResponse.access_token;
-          sessionStorage.setItem("gdrive_access_token", gdriveAccessToken);
+          const expiresIn = (tokenResponse.expires_in || 3600) * 1000;
+          const expiresAt = Date.now() + expiresIn;
+          localStorage.setItem("gdrive_access_token", gdriveAccessToken);
+          localStorage.setItem("gdrive_access_token_exp", expiresAt.toString());
           updateGDriveStatusUI(true);
           showToast("Google Drive Conectado!", "Sua conta foi autorizada com sucesso.", "success");
         } else {
@@ -1994,14 +2149,11 @@ function initGoogleDriveAuth(interactive = false) {
 
     if (interactive) {
       gdriveAccessToken = null;
-      sessionStorage.removeItem("gdrive_access_token");
+      localStorage.removeItem("gdrive_access_token");
+      localStorage.removeItem("gdrive_access_token_exp");
       tokenClient.requestAccessToken({ prompt: "select_account consent" });
     } else {
-      const savedToken = sessionStorage.getItem("gdrive_access_token");
-      if (savedToken) {
-        gdriveAccessToken = savedToken;
-        updateGDriveStatusUI(true);
-      }
+      checkAndRestoreGDriveSession();
     }
   } catch (err) {
     console.error("Erro ao inicializar Google OAuth:", err);
@@ -2074,7 +2226,246 @@ async function uploadFileToGoogleDrive({ name, mimeType, blob, folderId }) {
   }
 }
 
+// Lista os arquivos JSON de rascunho de uma pasta do Google Drive
+async function listGoogleDriveJsonFiles(folderId, importType = 'proposal') {
+  if (!gdriveAccessToken) {
+    throw new Error("Não conectado ao Google Drive.");
+  }
+
+  let files = [];
+
+  // 1. Tentar buscar arquivos diretamente dentro da pasta especificada (suportando Drives de Equipe/Compartilhados)
+  if (folderId) {
+    try {
+      const folderQuery = `'${folderId}' in parents and trashed=false`;
+      const folderUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(folderQuery)}&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,size)&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+
+      const response = await fetch(folderUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${gdriveAccessToken}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        files = data.files || [];
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar pasta específica no Drive, tentando busca global:", e);
+    }
+  }
+
+  // 2. Caso a pasta de contrato/proposta esteja vazia ou ID não corresponda, faz busca direcionada no Drive
+  if (files.length === 0) {
+    const keyword = importType === 'contract' ? 'Contrato' : 'Proposta';
+    console.log(`Buscando arquivos de ${keyword} no Google Drive...`);
+    const globalQuery = `name contains '${keyword}' and name contains '.json' and trashed=false`;
+    const globalUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(globalQuery)}&orderBy=modifiedTime desc&fields=files(id,name,mimeType,modifiedTime,size)&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+
+    const response = await fetch(globalUrl, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${gdriveAccessToken}`
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      files = data.files || [];
+    } else {
+      const err = await response.json();
+      throw new Error(err.error?.message || "Erro ao consultar arquivos no Google Drive.");
+    }
+  }
+
+  // Filtrar apenas arquivos cujos nomes correspondem à aba ativa (Proposta vs Contrato)
+  return files.filter(f => {
+    const isJson = f.name.toLowerCase().endsWith(".json") || f.mimeType === "application/json";
+    if (!isJson) return false;
+
+    const lowerName = f.name.toLowerCase();
+    if (importType === 'contract') {
+      return lowerName.includes("contrato");
+    } else {
+      return lowerName.includes("proposta") || !lowerName.includes("contrato");
+    }
+  });
+}
+
+// Baixa e parseia o conteúdo de um arquivo JSON do Google Drive
+async function downloadGoogleDriveFile(fileId) {
+  if (!gdriveAccessToken) {
+    throw new Error("Não conectado ao Google Drive.");
+  }
+
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${gdriveAccessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || "Erro ao baixar arquivo do Google Drive.");
+  }
+
+  return await response.json();
+}
+
+// Controle do Modal de Importação do Google Drive
+let currentGDriveImportType = 'proposal';
+
+function openGDriveImportModal(initialType = 'proposal') {
+  const modal = document.getElementById("gdrive-import-modal");
+  if (!modal) return;
+
+  if (!gdriveAccessToken) {
+    initGoogleDriveAuth(true);
+    return;
+  }
+
+  currentGDriveImportType = initialType;
+  updateGDriveModalTabsUI();
+
+  modal.classList.add("active");
+  loadGDriveFilesIntoModal();
+}
+
+function hideGDriveImportModal() {
+  const modal = document.getElementById("gdrive-import-modal");
+  if (modal) {
+    modal.classList.remove("active");
+  }
+}
+
+function updateGDriveModalTabsUI() {
+  const tabProp = document.getElementById("gdrive-tab-proposal");
+  const tabCont = document.getElementById("gdrive-tab-contract");
+
+  if (currentGDriveImportType === 'proposal') {
+    if (tabProp) {
+      tabProp.classList.add("active");
+      tabProp.style.background = "rgba(255,255,255,0.05)";
+      tabProp.style.borderColor = "rgba(255,255,255,0.1)";
+      tabProp.style.color = "#fff";
+    }
+    if (tabCont) {
+      tabCont.classList.remove("active");
+      tabCont.style.background = "transparent";
+      tabCont.style.borderColor = "transparent";
+      tabCont.style.color = "var(--text-secondary)";
+    }
+  } else {
+    if (tabCont) {
+      tabCont.classList.add("active");
+      tabCont.style.background = "rgba(255,255,255,0.05)";
+      tabCont.style.borderColor = "rgba(255,255,255,0.1)";
+      tabCont.style.color = "#fff";
+    }
+    if (tabProp) {
+      tabProp.classList.remove("active");
+      tabProp.style.background = "transparent";
+      tabProp.style.borderColor = "transparent";
+      tabProp.style.color = "var(--text-secondary)";
+    }
+  }
+}
+
+async function loadGDriveFilesIntoModal() {
+  const fileListContainer = document.getElementById("gdrive-file-list");
+  if (!fileListContainer) return;
+
+  fileListContainer.innerHTML = `
+    <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+      <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 24px; color: #4285F4; margin-bottom: 10px;"></i>
+      <p style="font-size: 12px;">Consultando arquivos no Google Drive...</p>
+    </div>
+  `;
+
+  try {
+    const config = getGDriveConfig();
+    const folderId = currentGDriveImportType === 'proposal' ? config.folderPropJson : config.folderContJson;
+    const files = await listGoogleDriveJsonFiles(folderId, currentGDriveImportType);
+
+    if (files.length === 0) {
+      fileListContainer.innerHTML = `
+        <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+          <i class="fa-solid fa-folder-open" style="font-size: 28px; opacity: 0.5; margin-bottom: 10px;"></i>
+          <p style="font-size: 12px; font-weight: 600;">Nenhum rascunho encontrado nesta pasta.</p>
+          <p style="font-size: 10px; opacity: 0.7; margin-top: 4px;">Ao gerar propostas/contratos ou salvar rascunhos, os arquivos aparecerão aqui automaticamente.</p>
+        </div>
+      `;
+      return;
+    }
+
+    fileListContainer.innerHTML = "";
+    files.forEach(file => {
+      const card = document.createElement("div");
+      card.className = "gdrive-file-card";
+
+      const formattedDate = file.modifiedTime 
+        ? new Date(file.modifiedTime).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+        : "Data desconhecida";
+
+      card.innerHTML = `
+        <div class="gdrive-file-info">
+          <i class="fa-solid fa-file-code gdrive-file-icon"></i>
+          <div class="gdrive-file-details">
+            <span class="gdrive-file-name" title="${file.name}">${file.name}</span>
+            <span class="gdrive-file-date"><i class="fa-regular fa-clock"></i> Modificado em: ${formattedDate}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-gdrive-import-action" data-file-id="${file.id}">
+          <i class="fa-solid fa-download"></i> Importar
+        </button>
+      `;
+
+      const btnImportAction = card.querySelector(".btn-gdrive-import-action");
+      btnImportAction.addEventListener("click", async () => {
+        btnImportAction.disabled = true;
+        btnImportAction.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Baixando...`;
+        try {
+          const parsedData = await downloadGoogleDriveFile(file.id);
+          applyParsedProposalState(parsedData);
+          showToast("Rascunho Importado!", `Os dados de "${file.name}" foram carregados com sucesso.`, "success");
+          hideGDriveImportModal();
+        } catch (err) {
+          console.error("Erro ao importar arquivo do Drive:", err);
+          showToast("Erro na Importação", err.message, "error");
+          btnImportAction.disabled = false;
+          btnImportAction.innerHTML = `<i class="fa-solid fa-download"></i> Importar`;
+        }
+      });
+
+      fileListContainer.appendChild(card);
+    });
+
+  } catch (err) {
+    console.error("Erro ao listar arquivos do Drive:", err);
+    fileListContainer.innerHTML = `
+      <div style="text-align: center; padding: 25px; color: #ef4444; background: rgba(239,68,68,0.05); border-radius: 8px;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size: 24px; margin-bottom: 8px;"></i>
+        <p style="font-size: 12px; font-weight: 700;">Erro ao acessar o Google Drive</p>
+        <p style="font-size: 11px; margin-top: 4px; opacity: 0.9;">${err.message}</p>
+        <button type="button" id="btn-reauth-gdrive" class="btn-secondary" style="margin-top: 12px; font-size: 11px; margin-bottom: 0;">
+          <i class="fa-brands fa-google-drive"></i> Reconectar Google Drive
+        </button>
+      </div>
+    `;
+    const btnReauth = document.getElementById("btn-reauth-gdrive");
+    if (btnReauth) {
+      btnReauth.addEventListener("click", () => {
+        initGoogleDriveAuth(true);
+      });
+    }
+  }
+}
+
 function getValidityDateString(days) {
+
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toLocaleDateString("pt-BR");
@@ -3696,6 +4087,22 @@ function updateContractPreview() {
   });
 }
 
+// Upload automático apenas do JSON do Contrato para o Google Drive (Pasta JSONs de Contrato)
+function uploadContractToDrive() {
+  const config = getGDriveConfig();
+  const clientName = proposalState.contractCompany || proposalState.clientName || "Cliente";
+  const clientNameCleaned = clientName.replace(/[\\/:*?"<>|]/g, "").trim() || "Cliente";
+  const jsonFilename = `Contrato Rakta - ${clientNameCleaned}.json`;
+
+  const jsonBlob = new Blob([JSON.stringify(proposalState, null, 2)], { type: "application/json" });
+  uploadFileToGoogleDrive({
+    name: jsonFilename,
+    mimeType: "application/json",
+    blob: jsonBlob,
+    folderId: config.folderContJson
+  });
+}
+
 function printContract() {
   const validation = validateContractFields();
   updateContractValidationUI(true);
@@ -3708,7 +4115,6 @@ function printContract() {
   updateContractPreview();
   const originalTitle = document.title;
   const clientName = proposalState.clientName || proposalState.contractCompany || "Cliente";
-  const clientNameCleaned = clientName.replace(/[\\/:*?"<>|]/g, "").trim() || "Cliente";
   document.title = `Contrato de Prestação de Serviços ${clientName}`;
   document.body.classList.add("print-contract-mode");
   window.print();
@@ -3717,15 +4123,8 @@ function printContract() {
     document.title = originalTitle;
   }, 1000);
 
-  // Upload automático do JSON do Contrato para o Google Drive (Pasta JSONs de Contrato)
-  const config = getGDriveConfig();
-  const jsonBlob = new Blob([JSON.stringify(proposalState, null, 2)], { type: "application/json" });
-  uploadFileToGoogleDrive({
-    name: `Contrato Rakta - ${clientNameCleaned}.json`,
-    mimeType: "application/json",
-    blob: jsonBlob,
-    folderId: config.folderContJson
-  });
+  // Upload automático do PDF e do JSON do Contrato para o Google Drive nas pastas de Contrato
+  uploadContractToDrive();
 }
 
 // Helpers para renderização de Bônus e design responsivo
