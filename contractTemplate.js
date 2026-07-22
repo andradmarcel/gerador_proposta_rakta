@@ -332,7 +332,7 @@ export function getContractTemplateHTML(data) {
         <div>
           <p class="c37 c19">
             <div style="display: flex; align-items: center; margin-bottom: 20px;">
-              <img src="assets/V3 Cor 5.svg" style="height: 12mm; display: block;" />
+              <img src="assets/V3 Cor 5-black.svg" style="height: 12mm; display: block;" />
             </div>
           </p>
         </div>
@@ -368,7 +368,7 @@ export function getContractTemplateHTML(data) {
             <td>
               
 <div class="contract-header">
-  <img src="assets/V3 Cor 5.svg" style="height: 8mm; display: block;" />
+  <img src="assets/V3 Cor 5-black.svg" style="height: 8mm; display: block;" />
 </div>
 
             </td>
