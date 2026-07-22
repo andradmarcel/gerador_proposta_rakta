@@ -2044,3 +2044,228 @@ textarea.input-field {
 .print-pdf-mode .cover-footer strong {
   color: #ffffff !important;
 }
+
+/* ==========================================================================
+   ESTILOS DE VALIDAÇÃO DE CONTRATO (MSA) & CNPJ
+   ========================================================================== */
+
+.required-star {
+  color: var(--rakta-red, #e30613);
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+.input-field.input-invalid {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+  background-color: rgba(239, 68, 68, 0.03) !important;
+}
+
+.input-field.input-valid {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+}
+
+.field-error-msg {
+  display: block;
+  font-size: 10px;
+  color: #ef4444;
+  margin-top: 4px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.field-error-msg i {
+  margin-right: 3px;
+}
+
+.field-success-msg {
+  display: block;
+  font-size: 10px;
+  color: #10b981;
+  margin-top: 4px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.field-success-msg i {
+  margin-right: 3px;
+}
+
+/* Card de Status de Validação do Contrato */
+.contract-status-card {
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.contract-status-card.status-valid {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.contract-status-card.status-invalid {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.contract-status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.contract-status-card.status-valid .contract-status-header {
+  color: #10b981;
+}
+
+.contract-status-card.status-invalid .contract-status-header {
+  color: #ef4444;
+}
+
+.contract-status-body {
+  font-size: 11px;
+  color: var(--text-secondary, #a1a1aa);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.contract-status-errors-list {
+  margin-top: 8px;
+  padding-left: 18px;
+  font-size: 10px;
+  color: #f87171;
+}
+
+.contract-status-errors-list li {
+  margin-bottom: 3px;
+}
+
+/* Modal de Erro de Validação do Contrato */
+.rakta-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.rakta-modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.rakta-modal-content {
+  background: #111113;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(239, 68, 68, 0.15);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.25s ease;
+}
+
+.rakta-modal-overlay.active .rakta-modal-content {
+  transform: translateY(0) scale(1);
+}
+
+.rakta-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rakta-modal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.rakta-modal-title {
+  font-family: var(--font-display, 'Space Grotesk'), sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.rakta-modal-subtitle {
+  font-size: 11px;
+  color: #a1a1aa;
+  margin-top: 2px;
+}
+
+.rakta-modal-body {
+  font-size: 12px;
+  color: #d4d4d8;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.rakta-modal-errors-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.rakta-modal-errors-box ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #f87171;
+}
+
+.rakta-modal-errors-box li {
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.rakta-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.rakta-modal-btn {
+  background: var(--rakta-red, #e30613);
+  color: #ffffff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rakta-modal-btn:hover {
+  background: #ff1a27;
+  transform: translateY(-1px);
+}

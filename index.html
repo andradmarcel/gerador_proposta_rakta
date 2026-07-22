@@ -362,6 +362,17 @@
         <!-- CONTEÚDO DO CONTRATO (Escondido por padrão) -->
         <div id="sidebar-contract-content" class="hidden">
 
+          <!-- Card de Status da Validação do Contrato -->
+          <div id="contract-validation-card" class="contract-status-card status-invalid">
+            <div class="contract-status-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span id="contract-status-title">Pendências no Contrato</span>
+            </div>
+            <div class="contract-status-body" id="contract-status-text">
+              Preencha os campos obrigatórios com asterisco (*) e verifique a validade do CNPJ antes de emitir o contrato.
+            </div>
+          </div>
+
           <!-- Seção: Rascunhos -->
           <section class="sidebar-section">
             <h3><i class="fa-solid fa-floppy-disk"></i> Rascunhos do Contrato</h3>
@@ -376,13 +387,6 @@
               </button>
               <input type="file" id="import-json-file-contract" accept=".json" style="display: none;">
             </div>
-            <div style="margin-top: 8px;">
-              <button type="button" id="btn-import-pdf-contract" class="btn-secondary"
-                style="width: 100%; padding: 10px; font-size: 11px; margin-bottom: 0; border: 1px dashed var(--rakta-red); color: var(--rakta-red); background: rgba(227, 6, 19, 0.05); display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <i class="fa-solid fa-file-pdf"></i> Importar de PDF Assinado (IA)
-              </button>
-              <input type="file" id="import-pdf-contract-file" accept=".pdf" style="display: none;">
-            </div>
             <p id="autosave-indicator-contract"
               style="color: #10b981; font-size: 10px; margin-top: 8px; font-weight: 600; display: none;">
               <i class="fa-solid fa-circle-check"></i> Alterações salvas localmente
@@ -394,34 +398,40 @@
             <h3><i class="fa-solid fa-building"></i> Contratante</h3>
 
             <div class="input-group">
-              <label for="contract-company-input">Razão Social / Nome</label>
+              <label for="contract-company-input">Razão Social / Nome <span class="required-star">*</span></label>
               <input type="text" id="contract-company-input" class="input-field" placeholder="Ex: Nutriderm LTDA">
+              <span class="field-error-msg hidden" id="msg-contract-company"></span>
             </div>
 
             <div class="input-group">
-              <label for="contract-cnpj-input">CNPJ</label>
+              <label for="contract-cnpj-input">CNPJ <span class="required-star">*</span></label>
               <input type="text" id="contract-cnpj-input" class="input-field" placeholder="Ex: 00.000.000/0001-00">
+              <span class="field-error-msg hidden" id="msg-contract-cnpj"></span>
             </div>
 
             <div class="input-group">
-              <label for="contract-phone-input">Telefone</label>
+              <label for="contract-phone-input">Telefone <span class="required-star">*</span></label>
               <input type="text" id="contract-phone-input" class="input-field" placeholder="Ex: (83) 99999-9999">
+              <span class="field-error-msg hidden" id="msg-contract-phone"></span>
             </div>
 
             <div class="input-group">
-              <label for="contract-address-input">Endereço Completo</label>
+              <label for="contract-address-input">Endereço Completo <span class="required-star">*</span></label>
               <input type="text" id="contract-address-input" class="input-field"
                 placeholder="Ex: Av. Paulista, 1000, Apt 12, Bela Vista, São Paulo/SP, CEP 01310-100">
+              <span class="field-error-msg hidden" id="msg-contract-address"></span>
             </div>
 
             <div class="input-group">
-              <label for="contract-rep-name-input">Representante Legal (Nome)</label>
+              <label for="contract-rep-name-input">Representante Legal (Nome) <span class="required-star">*</span></label>
               <input type="text" id="contract-rep-name-input" class="input-field" placeholder="Ex: João da Silva">
+              <span class="field-error-msg hidden" id="msg-contract-rep-name"></span>
             </div>
 
             <div class="input-group">
-              <label for="contract-rep-email-input">E-mail do Representante</label>
+              <label for="contract-rep-email-input">E-mail do Representante <span class="required-star">*</span></label>
               <input type="email" id="contract-rep-email-input" class="input-field" placeholder="Ex: joao@cliente.com">
+              <span class="field-error-msg hidden" id="msg-contract-rep-email"></span>
             </div>
           </section>
 
@@ -430,8 +440,9 @@
             <h3><i class="fa-solid fa-file-invoice-dollar"></i> Condições Financeiras</h3>
 
             <div class="input-group">
-              <label for="contract-start-date-input">Data de Início do Contrato</label>
+              <label for="contract-start-date-input">Data de Início do Contrato <span class="required-star">*</span></label>
               <input type="date" id="contract-start-date-input" class="input-field">
+              <span class="field-error-msg hidden" id="msg-contract-start-date"></span>
             </div>
 
             <h4
@@ -585,6 +596,34 @@
       </div>
     </main>
 
+  </div>
+
+  <!-- MODAL DE ALERTA DE ERROS DE VALIDAÇÃO DO CONTRATO -->
+  <div id="contract-validation-modal" class="rakta-modal-overlay">
+    <div class="rakta-modal-content">
+      <div class="rakta-modal-header">
+        <div class="rakta-modal-icon">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="rakta-modal-title">Pendências no Contrato (MSA)</h3>
+          <p class="rakta-modal-subtitle">Corrija os campos abaixo antes de emitir ou imprimir o contrato.</p>
+        </div>
+      </div>
+      <div class="rakta-modal-body">
+        <p>O contrato é um documento jurídico oficial enviado diretamente ao cliente. Para evitar retrabalho ou inconsistências comerciais, os seguintes itens precisam ser corrigidos:</p>
+        <div class="rakta-modal-errors-box">
+          <ul id="rakta-modal-errors-list">
+            <!-- Populado via JS -->
+          </ul>
+        </div>
+      </div>
+      <div class="rakta-modal-footer">
+        <button type="button" id="btn-close-validation-modal" class="rakta-modal-btn">
+          Entendido, Corrigir Agora
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Lógica Javascript da Aplicação (Carregada como módulo ES) -->
